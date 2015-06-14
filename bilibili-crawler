@@ -1,0 +1,48 @@
+#!/bin/bash
+
+# BiliBili Anaylzer: Analzye the relationship between bilibili users
+
+# Start from
+START_UID=4851356
+# Extention of temp files
+TEMP_EXT=.tmp
+# Extention of the crawlwd mark
+CRAWLED_EXT=.crawled
+# Save relation to
+OUTPUT_FILE=bilibili.prolog
+# Start from page
+PAGE=1
+
+function crawl {
+        while true
+        do
+                [[ ! -z $1 ]] && CURRENT_UID=$1 || CURRENT_UID=$START_UID # If parameter is given, use it as start UID
+                echo "[$(date)] Crwaling $CURRENT_UID... " # Print status
+                curl http://space.bilibili.com/$CURRENT_UID/fans.html?page=$PAGE 2> /dev/null > $CURRENT_UID$TEMP_EXT # Get the page of follwers of current page
+                DATAS=$(cat $CURRENT_UID.tmp | grep http://space.bilibili.com/  | awk -F\" '{print $6}' | grep html | awk -F/ '{print $4}') # Parser the page and get the UID of the followers
+
+                [[ $DATAS == "" ]] && echo "[$(date)] Going out from $CURRENT_UID..." && return 0 # No followers? Possiblly the last page. Or... we meet a poor guy
+
+                for DATA in $DATAS
+                do
+                        echo "[$(date)] Geting into $DATA..."
+                        [[ ! -z $(cat $CURRENT_UID$CRAWLED_EXT 2> /dev/null | grep $DATA) ]] && return 0 # Already crawled? Okay, let's get away.
+                        echo "follow($DATA,$CURRENT_UID)." >> $OUTPUT_FILE # Write the follower data to output
+                        echo $DATA >> $CURRENT_UID$CRAWLED_EXT # Mark as crawled.
+                        crawl $DATA # Crawl this follower
+                done
+
+                PAGE=$(nextpage) # Done? Go next page.
+                echo "[$(date)] Turned to page $PAGE"
+        done
+}
+
+
+function nextpage {
+        echo $PAGE+1 | bc
+}
+
+rm *$CRAWLED_EXT 2> /dev/null
+rm *$TEMP_EXT 2> /dev/null
+
+crawl

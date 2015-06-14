@@ -1,0 +1,23 @@
+#!/bin/bash
+# locker: simple secure archiver using openssl
+
+function unlock {
+	echo "unlocking $1..."
+	cat $1 |  openssl aes-256-cbc -d -a -salt -k $2 | tar x
+}
+
+function lock {
+	echo "locking $1..."
+	tar c $1 | openssl aes-256-cbc -a -salt -k $2 > $1.lock
+}
+
+function help {
+	echo "locker: simpe file archiver encoded with aes-256-cbc"
+	echo "usage: locker lock <file/dir> <password>"
+	echo "       locker unlock <locked archive> <password>"
+}
+
+echo "locker 0.1"
+echo "for help, type 'locker help'"
+
+$* 

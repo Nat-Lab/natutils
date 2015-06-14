@@ -1,0 +1,24 @@
+#!/bin/bash
+# nrt, nat trace route: a fast trace route script.
+
+echo "[ * ] Traceing to $1... "
+
+MAX=$(echo "64-$(ping -c1 $1 | tr " " "\n" | grep ttl | awk -F= '{print $2}')" | bc)
+STEP=0
+TEMP=.nrttmp
+echo > $TEMP
+echo -n "[ * ] Total $MAX Hopes, start trace... ["
+
+function lowttl_ping {
+        echo [ $2 ] $(ping -m$2 -t1 $1 | grep exceeded | awk -F" " '{print $4,$5}' | sed -e "s/://g" | sed -e "s/Time//g") >> $TEMP
+        echo -n " -$2"
+}
+
+while [[ $STEP != $MAX ]]
+do
+        STEP=$(echo $STEP+1|bc)
+        lowttl_ping $1 $STEP &
+        echo -n " +$STEP"
+done
+wait; echo -n " ]"
+cat $TEMP | sort -n -k2

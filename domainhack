@@ -1,0 +1,67 @@
+#!/bin/bash
+#
+# domainhack: Find the registered domains with no handle on nameservers.
+# Currently, the script is configured to capture dnspod's domains.
+#
+
+DAILYCHALES_DOMAINLIST_CSV="./domain.csv"
+DOMAIN_LIST="./domain.lst"
+DOMAIN_SAVE="./save.lst"
+CHECKED_SAVE="./save-checked.lst"
+DEFAULT_NS="f1g1ns1.dnspod.net"
+DOWNLOAD_NS="dnspod.net"
+
+WARN="\033[1;33m"
+ERR="\033[0;31m"
+SUCCESS="\033[1;32m"
+RST="\033[0m"
+
+DATE=$1
+[[ -z $DATE || $DATE == "NOW" || $DATE == "now" ]] && DATE="$(date +%Y-%m-%d)"
+WHOIS_CHECKMODE=$(echo $* | grep whois-mode)
+VERIFY_NS=$(echo $* | grep verifyns)
+
+function getarg {
+	cat /dev/stdin | awk -F"--$1 " '{print $2}' | awk -F" " '{print $1}'
+}
+
+function checkDomainNS {
+	echo -n "checkDomainNS: checking $1..."
+	NS=$(whois $1 2> /dev/null | grep "Name Server")
+	[[ -z $NS ]] && echo -e "$WARN whois error$RST" && return 1
+	[[ ! -z $(echo $NS | grep $DEFAULT_NS) ]] && echo -e "$SUCCESS using target nameserver$RST" && echo $1 >> $CHECKED_SAVE || echo -e "$ERR not using target nameserver$RST"
+}
+
+function checkDomainCofniguredByNS {
+	echo -n "checkDomainCofniguredByNS: checking $1 in $2..."
+	[[ ! -z $(nslookup $1 $DEFAULT_NS | grep -E "NXDOMAIN|SERVFAIL|could|timed") ]] && echo -e "$SUCCESS unconfiged$RST" && echo "$1" >> $DOMAIN_SAVE || echo -e "$ERR configed$RST"
+	[[ ! -z $VERIFY_NS ]] && checkDomainNS $1
+}
+
+function checkDomainList {
+	for domain in $(cat $DOMAIN_LIST)
+	do
+		checkDomainCofniguredByNS $domain $DEFAULT_NS
+	done
+}
+
+function processDomainList {
+	echo -n "processDomainList: processing $DAILYCHALES_DOMAINLIST_CSV..."
+	cat $DAILYCHALES_DOMAINLIST_CSV | grep ,new, | sed -e "s/,new,//g" > $DOMAIN_LIST
+	dos2unix $DOMAIN_LIST > /dev/null 2> /dev/null
+	echo -e "$SUCCESS done$RST"
+}
+
+function downloadDomainList {
+	echo -n "downloadDomainList: downloading domains list for $DATE from dailychanges..."
+	curl -s -A "Mozilla Firefox" -e "http://www.dailychanges.com/$DOWNLOAD_NS/$DATE/" "http://www.dailychanges.com/export/$DOWNLOAD_NS/$DATE/export.csv" > $DAILYCHALES_DOMAINLIST_CSV 2> /dev/null
+	[[ -z $(cat $DAILYCHALES_DOMAINLIST_CSV | grep ,new,) ]] && echo -e "$ERR failed$RST" && exit 1 || echo -e "$SUCCESS done$RST"
+}
+
+function main {
+	downloadDomainList
+	processDomainList
+	checkDomainList
+}
+
+main

@@ -1,0 +1,6 @@
+#!/bin/bash
+[[ ! -z $1 ]] && URL=$1 || read URL
+echo -n "Resolving the real link... "
+REAL=$(curl $URL 2> /dev/null | grep "class=\"link1\"" | awk -F\" '{print $8}')
+echo "OK"
+echo "The real link is: $REAL"

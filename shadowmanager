@@ -1,0 +1,26 @@
+#!/bin/bash
+# shadowmanager: simple shadowsocks manager
+
+EXEC="screen -dmS"
+WORKERS="10"
+EXTRA="--fast-open"
+
+# FORMAT OF SERVIC
+# name, port, method, password \
+# name2, port2, method2, password2 \
+# ...
+# nameN, portN, methodN, passwordN
+
+SERVICES="\
+shadow1,8388,aes-256-cfb,shadowsocks \
+shadow2,443,aes-rc4-cfb,shadowsocks"
+
+for serv in $SERVICES
+do
+        SCREEN_NAME=$(echo $serv | awk -F, '{print $1}')
+        LISTEN=$(echo $serv | awk -F, '{print $2}')
+        METHOD=$(echo $serv | awk -F, '{print $3}')
+        PASSWORD=$(echo $serv | awk -F, '{print $4}')
+        echo "Starting shaodowsocks server $SCREEN_NAME on $LISTEN, method $METHOD with password $PASSWORD."
+        $EXEC $SCREEN_NAME ssserver -p $LISTEN -k $PASSWORD -m $METHOD --workers $WORKERS $EXTRA
+done

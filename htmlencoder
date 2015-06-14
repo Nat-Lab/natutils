@@ -1,0 +1,2 @@
+#!/bin/bash
+[[ -e $1 && ! -z $1 ]] && echo "<script>window.location.assign('data:$([[ -z $2 ]] && echo "text/html" || echo $2);base64,$(base64 $1)');</script>" 

@@ -1,0 +1,6 @@
+#!/bin/bash
+# Run a simple http server under current path.
+# usage: http-here [listen]
+DEFAULT_PORT=8080
+CMD="python -m SimpleHTTPServer "
+[[ -z $1 ]] && $CMD$DEFAULT_PORT || $CMD$1

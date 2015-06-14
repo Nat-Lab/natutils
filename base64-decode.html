@@ -1,0 +1,15 @@
+<html>
+<head>
+  <script>
+  function decode () {
+    displayFrame = document.getElementById('display');
+    displayFrame.src = "data:" + document.getElementById('dataType').value + ";base64," + document.getElementById('encoded').value;
+  }
+  </script>
+</head>
+<body>
+  <iframe id="display" width=100% height=350></iframe>
+  Data Type: <input id="dataType" onkeyup="decode();" value="text/plain"/><br>
+  Encoded data<br><textarea id="encoded" rows=10 cols=80 onkeyup="decode();"></textarea>
+</body>
+</html>
