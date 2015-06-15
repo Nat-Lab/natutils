@@ -32,6 +32,8 @@ shadowmanager: simple shadowsocks manager
 
 simpleRouter.js: simple node.js router
 
+subDomainBrute: Sub-domain burte
+
 ---
 
 License: WTFPL
