@@ -32,7 +32,9 @@ shadowmanager: simple shadowsocks manager
 
 simpleRouter.js: simple node.js router
 
-subDomainBrute: Sub-domain burte
+subDomainBrute: subdomain burte
+
+dominBruteDict.txt: the most common 3000 subdomains
 
 ---
 

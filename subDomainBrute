@@ -1,0 +1,35 @@
+#!/bin/bash
+# subDomainBrute: find subdomains
+# usage: ./subDomainBrute <dict> <domain> [nameserver]
+
+THREADS=50
+
+trap 'quit' 2 15
+
+function main {
+	[[ -z $2 ]] && usage && return 1
+	local thread=0
+	for domain in $(cat $1)
+	do
+		doBrute $domain $2 $3&
+		thread=$(echo $thread+1|bc)
+		[[ $thread == $THREADS ]] && wait && thread=0
+	done
+}
+
+function doBrute {
+        ADDR=$(nslookup $1.$2 $3 | tr -d "\n" | sed -e 's/.*Name://g' | awk -F" " '{print $2}' | sed -e 's/.*://g')
+        [[ ! -z $ADDR ]] && echo "$1.$2: $ADDR"
+}
+
+function usage {
+	echo 'usage: ./subDomainBrute <dict> <domain> [nameserver]'
+}
+
+function quit {
+	echo 'Waiting for all childs to die...'
+	wait
+	exit 0
+}
+
+main $*
