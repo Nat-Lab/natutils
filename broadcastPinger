@@ -1,0 +1,20 @@
+#!/bin/bash
+# boradcastPinger: send a broadcast ping to see who is in LAN
+# usage: boradcastPinger <interface>
+
+BROADCAST=$(ifconfig $1|grep broadcast|awk -F"broadcast" '{print $2}')
+TIMES=10
+
+function main {
+	[[ -z $BROADCAST ]] && echo "BROADCAST address not found." && exit 1
+	echo -n "pinging... "
+	IPS=$(broadcastPing &)
+	wait; echo " done"
+	echo -e "Address replied broadcast:\n$IPS"
+}
+
+function broadcastPing {
+	ping -c $TIMES $BROADCAST | grep from | awk -Ffrom\  '{print $2}' | sed -e 's/:.*//g' | sort | uniq
+}
+
+main $*

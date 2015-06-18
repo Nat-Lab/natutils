@@ -36,6 +36,8 @@ subDomainBrute: subdomain burte
 
 dominBruteDict.txt: the most common 3000 subdomains
 
+broadcastPinger: send broadcast ping to check alive host on network.
+
 ---
 
 License: WTFPL
