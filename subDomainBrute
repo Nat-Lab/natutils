@@ -27,7 +27,7 @@ function usage {
 }
 
 function quit {
-	echo 'Waiting for all childs to die...'
+	echo 'Waiting for all process to die...'
 	wait
 	exit 0
 }
