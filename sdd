@@ -1,0 +1,18 @@
+#!/bin/bash
+# sdd: remote dd over ssh
+# usage: sdd host[:port] src dest
+# examples:
+#   sdd example.com /dev/sda1 ./backup.img
+#   add example.org:2222 /root/backup.sql ./backup.sql
+
+function usage {
+	echo '\
+sdd: remote dd over ssh
+sdd host[:port] port src dest'
+}
+
+function sdd {
+	ssh $(echo $1|sed -e 's/:/ -p/') "dd if=$2" | dd of=$3
+}
+
+[[ -z $3 ]] && usage || sdd $*
