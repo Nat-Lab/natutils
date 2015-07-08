@@ -8,7 +8,7 @@
 function usage {
 	echo '\
 sdd: remote dd over ssh
-sdd host[:port] port src dest'
+sdd host[:port] src dest'
 }
 
 function sdd {
