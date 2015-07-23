@@ -1,0 +1,28 @@
+#!/bin/bash
+# date-fetch: get the list of bugs on wooden that publish after a given date.
+
+CHANNEL=new_public
+IFS=$'\n' 
+TMP=$TMPDIR/wooyun-fetch.tmp
+
+function fetch {
+	curl http://www.wooyun.org/bugs/$CHANNEL/page/$1|grep -E '<th>20|<td><a href'|sed -e 's/<th>//g; s/<\/th>/: /g; '|tr -d '\t'|tr -d '\r\n'|sed -e 's/<\/a>/\
+/g; s/<td><a href="/http:\/\/www.wooyun.org/g; s/">/ /g' 2> /dev/null
+}
+
+function main {
+	read -p "View the bugs after (YYYY-MM-DD): " key
+	read -p "                     Search from: " from 
+	read -p "                              To: " to
+	for page in $(seq $from $to)
+	do
+		fetch $page > $TMP 2> /dev/null
+		for bug in $(cat $TMP)
+		do
+			_date=$(echo $bug | awk -F": " '{print $1}' | sed -e "s/-/,/g; s/,0/,/g;")
+			_def_date=$(echo $key | sed -e "s/-/,/g; s/,0/,/g;")
+			[[ $(python -c "from datetime import date; print (date($_date)-date($_def_date))"|sed -e 's/days.*//g') > 0 ]] && echo $bug
+		done
+	done
+}
+main

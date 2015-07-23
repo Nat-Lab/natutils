@@ -40,6 +40,7 @@ broadcastPinger: send broadcast ping to check alive host on network.
 
 sdd: remote dd over ssh
 
+wooyun-getBUGsByDate: get the list of bugs on wooden that publish after a given date.
 ---
 
 License: WTFPL
