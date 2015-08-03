@@ -1,0 +1,27 @@
+#!/bin/bash
+
+MAX_THREAD=50
+TIMEOUT=5
+TEMP=./titleFetch.tmp
+
+rm $TEMP 2> /dev/null
+function getTitleByIP {
+	title=$(curl $1 --max-time $TIMEOUT 2> /dev/null | perl -l -0777 -ne 'print $1 if /<title.*?>\s*(.*?)\s*<\/title/si')
+	[[ ! -z $title ]] && echo "$addr: $title" >> $TEMP
+}
+
+function main {
+	let thread=0
+	echo "Feting $1.x from $2 to $3..."
+	for addr in $(seq -f "$1.%g" $2 $3)
+	do
+		let thread++
+		getTitleByIP $addr &
+		echo -n "$addr "
+		[[ $thread == $MAX_THREAD ]] && wait && thread=0
+	done
+	wait
+	cat $TEMP | sort -n
+}
+
+main $*
