@@ -44,6 +44,8 @@ wooyun-getBUGsByDate: get the list of bugs on wooden that publish after a given 
 
 titleFetch: fetch the titles of an IP range.
 
+wenku8-fetch: A tool to download all novels on wenku8.com.
+
 ---
 
 License: WTFPL

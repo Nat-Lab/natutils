@@ -1,0 +1,39 @@
+#!/bin/bash
+
+STORE_PATH=./save/
+FETCH_URL='http://www.wenku8.com/modules/article/articlelist.php?page='
+DOWNLOAD_TYPE="utf8"
+DOWNLOAD_URL="http://dl.wenku8.com/txt$DOWNLOAD_TYPE/__K/__ID.txt"
+DOWNLOAD_FALLBACK="http://dl.wenku8.com/down.php?type=$DOWNLOAD_TYPE&id="
+TEMP=temp.tmp
+FROM=1
+TO=93
+TIMESTEMP_FORMAT="%H:%M:%S"
+THREADS=20
+
+for page in $(seq $FORM $TO)
+do
+	echo "[$(date +$TIMESTEMP_FORMAT)] Starting page $page"
+	curl $FETCH_URL$page 2> /dev/null > $TEMP
+	cat $TEMP | iconv -f gbk -t utf-8 | grep 'font-size:13px;' | sed -e 's/.*book\///g; s/.htm">/ /g; s/<\/a><\/b>//g;' > title$TEMP
+	_ids=$(cat $TEMP | iconv -f gbk -t utf-8 | grep 'font-size:13px;' | sed -e 's/.*book\///g; s/\.htm.*//g')
+	let threads=0
+	for novel in $_ids
+	do
+		let threads++
+		{
+			_this_name=$(cat title$TEMP|grep $novel)
+			_this_url="$(echo $DOWNLOAD_URL|sed -e "s/__K/1/; s/__ID/$novel/;")"
+			_this_save="$STORE_PATH/$(echo $_this_name|tr ' ' '_'|dos2unix 2>/dev/null).txt"
+			echo "[$(date +$TIMESTEMP_FORMAT)] Downloading $_this_name"
+			curl $_this_url > $_this_save 2> /dev/null
+			[[ ! -z $(cat $_this_save | grep '404 Not Found') ]] && {
+				echo "[$(date +$TIMESTEMP_FORMAT)] received 404 Not Found, trying fallback for $_this_name"
+				_this_url="http://dl.wenku8.com$(curl -I "$DOWNLOAD_FALLBACK$novel" 2> /dev/null | grep Location | awk -F:\  '{print $2}')"
+				curl $_this_url > $_this_save 2> /dev/null
+				echo "[$(date +$TIMESTEMP_FORMAT)] fallback done for $_this_name"
+			} || echo "[$(date +$TIMESTEMP_FORMAT)] Done $_this_name" 
+		} & 
+		[[ $threads == $THREADS ]] && threads=0 && wait
+	done
+done
