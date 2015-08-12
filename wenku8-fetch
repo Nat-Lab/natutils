@@ -11,14 +11,14 @@ TO=93
 TIMESTEMP_FORMAT="%H:%M:%S"
 THREADS=20
 
-trap 2 remove_unfinished
+trap remove_unfinished 2 15
 
 function remove_unfinished {
 	_ids=$(cat $TEMP | iconv -f gbk -t utf-8 | grep 'font-size:13px;' | sed -e 's/.*book\///g; s/\.htm.*//g')
-	for novel in $_ids
-	do
-		rm $novel_* 2> /dev/null
-	done
+	echo "[$(date +$TIMESTEMP_FORMAT)] Wait for all tasks to end..."
+	wait
+	echo "[$(date +$TIMESTEMP_FORMAT)] Done. Continue download using -c parameter."
+	exit 0
 }
 
 for page in $(seq $FORM $TO)
