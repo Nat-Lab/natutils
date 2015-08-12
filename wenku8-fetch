@@ -11,10 +11,14 @@ TO=93
 TIMESTEMP_FORMAT="%H:%M:%S"
 THREADS=20
 
-trap remove_unfinished 2 15
+trap _exit 1 2 15
+trap _info 3
 
-function remove_unfinished {
-	_ids=$(cat $TEMP | iconv -f gbk -t utf-8 | grep 'font-size:13px;' | sed -e 's/.*book\///g; s/\.htm.*//g')
+function _info {
+	echo "[$(date +$TIMESTEMP_FORMAT)] Downloading page $page, current size $(du -h $STORE_PATH|awk -F\  '{print $1}'), format $DOWNLOAD_TYPE"
+}
+
+function _exit {
 	echo "[$(date +$TIMESTEMP_FORMAT)] Wait for all tasks to end..."
 	wait
 	echo "[$(date +$TIMESTEMP_FORMAT)] Done. Continue download using -c parameter."
