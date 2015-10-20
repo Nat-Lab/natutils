@@ -1,0 +1,51 @@
+#!/bin/bash
+#
+# bashSQL: A BaSH SQL lib
+# usage:
+#
+# sql.conn <host> <port> <user> <pass>
+# create a new sql session. Return session ID.
+#
+# sql.disconn <session>
+# disconnect a sql session
+#
+# sql.query <session>
+# do SQL query. Read SQL from stdin.
+#
+# sample usage:
+#
+# % sql.conn localhost 3306 root toor
+# 1003
+# % echo 'show databases;' | sql.query 1003
+# information_schema
+# mysql
+# & sql.disconn 1003
+
+function sql.conn {
+	local host=$1
+	local port=$2
+	local user=$3
+	local pass=$4
+	local id=$RANDOM
+	mkfifo /tmp/bashsql.$id
+	cat > /tmp/bashsql.$id &; echo $! > /tmp/bashsql.$id.pid
+	cat /tmp/bashsql.$id | mysql -h$host --port=$port -p$pass -u$user &
+	echo $! >> /tmp/bashsql.$id.pid
+	echo $id
+}
+
+function sql.disconn {
+	echo 'quit' | sql.query $1
+	local kills="$(cat /tmp/bashsql.$1.pid)"
+	IFS='\n'
+	for tar in $kills
+	do
+		kill $tar
+	done
+	rm /tmp/bashsql.$1.*
+	echo "killed $1"
+}
+
+function sql.query {
+	cat > /tmp/bashsql.$1
+}
