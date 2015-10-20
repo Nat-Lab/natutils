@@ -19,7 +19,7 @@
 # % echo 'show databases;' | sql.query 1003
 # information_schema
 # mysql
-# & sql.disconn 1003
+# % sql.disconn 1003
 
 function sql.conn {
 	local host=$1
@@ -36,9 +36,7 @@ function sql.conn {
 
 function sql.disconn {
 	echo 'quit' | sql.query $1
-	local kills="$(cat /tmp/bashsql.$1.pid)"
-	IFS=$'\n'
-	for tar in $kills
+	for tar in $(cat /tmp/bashsql.$1.pid)
 	do
 		kill $tar
 	done
