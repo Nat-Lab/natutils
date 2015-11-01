@@ -24,6 +24,7 @@
 - titleFetch: fetch the titles of an IP range.
 - wenku8-fetch: a tool to download all novels on wenku8.com.
 - bashSQL: a BaSH based SQL API 
+- osu-rankview: view the osu! rank of given players.
 
 ---
 

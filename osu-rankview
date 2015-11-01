@@ -1,0 +1,52 @@
+#!/bin/bash
+#
+# osu-rankview: view the osu! rank of given players.
+# :) Yes, view friend ranking even if you are NOT a supporter.
+# Hopefully ppy won't kill me lol
+
+THREADS_MAX=20 # max thread when fecthing user datas
+
+# getIdByName: get the ID of given user
+# usage: getIdByName <username>
+function getIdByName {
+	curl "https://osu.ppy.sh/u/$1" 2> /dev/null | grep "var userId" | awk -F"= " '{print $2}'
+}
+
+# getRankByID: get the rank of given ID of given gamemode
+# usage: getRankByID <uid> <mode>
+function getRankByID {
+	[[ -z $2 ]] && return 1
+	local user=$1
+	case $2 in
+		osu|0) local game=0;;
+		taiko|1) local game=1;;
+		ctb|catchthebeat|2) local game=2;;
+		mania|osumania|3) local game=3;;
+	esac
+	echo "$user ($2)$(curl "https://osu.ppy.sh/pages/include/profile-general.php?u=$(getIdByName $user)&m=$game" 2> /dev/null | grep 74631045581 | awk -F "[>|<]" '{print $7}')"
+}
+
+# showRank: show the rank of players
+# usage: showRank <mode>
+# read users from stdin, end with EOF, seprate with comma..
+function showRank {
+	[[ -e rankview.tmp ]] && rm rankview.tmp
+	[[ -z $1 ]] && return 1
+	users=$(cat|sed -e 's/, /,/g')
+	IFS=","
+	let threads=0
+	for user in $users
+	do
+		echo "[$(date)] Fecthing $user..."
+		{
+			let threads++
+			getRankByID $user $1 >> rankview.tmp
+			echo "[$(date)] Done $user."
+		} &
+		[[ $threads == $THREADS_MAX ]] && wait && threads=0
+	done
+	wait
+	cat rankview.tmp | tr -d ',' | sort -k3nr
+}
+
+showRank $*
