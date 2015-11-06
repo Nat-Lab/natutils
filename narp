@@ -12,7 +12,7 @@ function ask {
 	[[ $sender == *ME* || $sender == *I* ]] && unset sender
 	[[ $sender == *G* || $sender == *ROUTER* ]] && local sender=$gw
 	[[ $sender_mac == *ME* || $sender_mac == "MYSELF" ]] && unset sender_mac
-	[[ $sender_mac == *G* || $sender_mac == *ROUTER* ]] && local sender_mac=$(arp -a | grep $gw | awk -F" " '{print $4}')
+	[[ $sender_mac == *G* || $sender_mac == *ROUTER* ]] && local sender_mac=$(getmac $gw)
 	[[ ! -z $DEBUG ]] && echo "- [target: $target] [sender: $sender] [sender_mac: $sender_mac] [count: $count] [rate: $rate] [arg: $arg] [gw: $gw]"
 	[[ -z $target ]] && echo "ask: error" && return 1 || local arg="$arg$target"
 	[[ ! -z $sender ]] && local arg="$arg --arp-sender-ip=$sender"
@@ -37,7 +37,7 @@ function tell {
 	[[ $sender == *ME* || $sender == *I* || $sender == "MY" ]] && unset sender
 	[[ $sender == *G* || $sender == *ROUTER* ]] && local sender=$gw
 	[[ $sender_mac == *ME* || $sender_mac == *MY* ]] && unset sender_mac
-	[[ $sender_mac == *G* || $sender_mac == *ROUTER* ]] && local sender_mac=$(arp -a | grep $gw | awk -F" " '{print $4}')
+	[[ $sender_mac == *G* || $sender_mac == *ROUTER* ]] && local sender_mac=$(getmac $gw)
 	[[ ! -z $DEBUG ]] && echo "- [target: $target] [sender: $sender] [sender_mac: $sender_mac] [count: $count] [rate: $rate] [arg: $arg] [gw: $gw]"
 	[[ -z $target ]] && echo "tell: error" && return 1 || local arg="$arg$target"
 	[[ ! -z $sender ]] && local arg="$arg --arp-sender-ip=$sender"
@@ -45,6 +45,17 @@ function tell {
 	[[ ! -z $count ]] && local arg="$arg -c$count" || local arg="$arg -c1"
 	[[ ! -z $count && ! -z $rate ]] && local arg="$arg --rate=$rate"
 	nping $COMMON $arg | grep ARP 
+}
+
+function getmac {
+	local try=0
+	while [[ -z $mac_addr ]]
+	do
+		let try++
+		local mac_addr=$(nping --arp $1 -c1 | grep "reply $1" | awk -F" at " '{print tolower($2)}') 
+		[[ $try == 10 ]] && local mac_addr="ff:ff:ff:ff:ff:ff"
+	done
+	echo $mac_addr
 }
 
 function narp {
@@ -58,7 +69,7 @@ function narp {
 function narp_exec {
 	[[ -z $1 ]] && return 0
 	case $1 in
-		tell|ask|usage) $cmd;;
+		tell|ask|usage|exit) $cmd;;
 		*) echo "narp: $1 not found.";;
 	esac
 }
