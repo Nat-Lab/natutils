@@ -1,14 +1,16 @@
 #!/bin/bash
-#
-#
+# TODO: add rarp/rarp-reply
+# TODO: more human readable
 function ask {
 	local arg="--arp "
 	local target=$(echo $* | awk -F"WHOIS" '{print $2}' | awk -F"[TELL|FROM|FOR|AT]" '{print $1}' | tr -d ' ')
 	local sender_mac=$(echo $* | awk -F"FROM" '{print $2}' | awk -F"[TELL|FOR|AT]" '{print $1}' | tr -d ' ')
 	local sender=$(echo $* | awk -F"TELL" '{print $2}' | awk -F"[FOR|AT]" '{print $1}' | tr -d ' ')
-	local count=$(echo $* | awk -F"FOR" '{print $2}' | awk -F"AT" '{print $1}' | tr -d ' ')
+	local count=$(echo $* | awk -F"FOR" '{print $2}' | awk -F"AT" '{print $1}' | tr -d ' ' | sed -e 's/TIMES//;')
 	local rate=$(echo $* | awk -F"AT" '{print $2}' | tr -d ' ')
 	[[ -z $target ]] && echo "ask: error" && return 1 || local arg="$arg$target"
+	[[ $sender == *ME* || $sender == *I* ]] && unset sender
+	[[ $sender_mac == *ME* || $sender_mac == "MYSELF" ]] && unset sender_mac
 	[[ ! -z $sender ]] && local arg="$arg --arp-sender-ip=$sender"
 	[[ ! -z $sender_mac ]] && local arg="$arg --arp-sender-mac=$sender_mac"
 	[[ ! -z $count ]] && local arg="$arg -c$count" || local arg="$arg -c1"
@@ -19,16 +21,20 @@ function ask {
 function tell {
 	local arg="--arp --arp-type=ARP-reply "
 	local target=$1
-	local sender=$(echo $* | awk -F"THAT" '{print $2}' | awk -F"[IS|FOR|AT]" '{print $1}' | tr -d ' ')
-	local sender_mac=$(echo $* | awk -F"IS" '{print $2}' | awk -F"[FOR|AT]" '{print $1}' | tr -d ' ')
-	local count=$(echo $* | awk -F"FOR" '{print $2}' | awk -F"AT" '{print $1}' | tr -d ' ')
+	local sender=$(echo $* | awk -F"THAT" '{print $2}' | awk -F"[IS|AM|FOR|AT]" '{print $1}' | tr -d ' ')
+	local sender_mac=$(echo $* | sed -e 's/AM/IS/;' | awk -F"IS" '{print $2}' | awk -F"[FOR|AT]" '{print $1}' | tr -d ' ')
+	local count=$(echo $* | awk -F"FOR" '{print $2}' | awk -F"AT" '{print $1}' | sed -e 's/TIMES//;' | tr -d ' ')
 	local rate=$(echo $* | awk -F" AT " '{print $2}' | tr -d ' ')
+	local sender=$(echo $sender | awk '{print toupper($0)}')
+	local sender_mac=$(echo $sender_mac | awk '{print toupper($0)}')
+	[[ $sender == *ME* || $sender == *I* || $sender == "MY" ]] && unset sender
+	[[ $sender_mac == *ME* || $sender_mac == *MY* ]] && unset sender_mac
 	[[ -z $target ]] && echo "tell: error" && return 1 || local arg="$arg$target"
 	[[ ! -z $sender ]] && local arg="$arg --arp-sender-ip=$sender"
 	[[ ! -z $sender_mac ]] && local arg="$arg --arp-sender-mac=$sender_mac"
 	[[ ! -z $count ]] && local arg="$arg -c$count" || local arg="$arg -c1"
 	[[ ! -z $count && ! -z $rate ]] && local arg="$arg --rate=$rate"
-	nping $COMMON $arg | grep ARP
+	nping $COMMON $arg | grep ARP 
 }
 
 function narp {
@@ -71,7 +77,7 @@ function usage {
          ask WHOIS 1.2.3.4
          (ask who has 1.2.3.4 and tell it to you)
 
-         ask WHOIS 1.2.3.4 TELL 1.2.3.6
+         ask WHOIS 1.2.3.4 TELL 1.2.3.6 
          (ask who has 1.2.3.4, and tell it to 1.2.3.6)
 
          ask WHOIS 1.2.3.4 FROM 00:11:22:33:44:55
@@ -94,10 +100,10 @@ function usage {
 
      examples:
 
-         tell 1.2.3.4
+         tell 1.2.3.4 [I AM MYSELF]
          (tell 1.2.3.4 your mac address)
 
-         tell 1.2.3.4 THAT 1.2.3.6
+         tell 1.2.3.4 THAT 1.2.3.6 [IS ME]
          (tell 1.2.3.4 that 1.2.3.6 have your mac address)
  
          tell 1.2.3.4 THAT 1.2.3.4 IS 00:11:22:33:44:55
