@@ -69,7 +69,7 @@ function narp {
 function narp_exec {
 	[[ -z $1 ]] && return 0
 	case $1 in
-		tell|ask|usage|exit) $cmd;;
+		tell|ask|usage|exit|arp|ifconfig) eval $cmd;;
 		*) echo "narp: $1 not found.";;
 	esac
 }
@@ -113,7 +113,7 @@ function usage {
          ask WHOIS 1.2.3.4 [AND TELL IT TO ME] FOR 20 [TIMES]
          (ask who has 1.2.3.4, and tell it to you, ask for 20 times)
 
-         ask WHOIS 1.2.3.4 [AND TELL IT TO ME] FOR 20 [TIEMS] AT 5 [TIMES PRE 
+         ask WHOIS 1.2.3.4 [AND TELL IT TO ME] FOR 20 [TIEMS] AT 5 [TIMES PER 
          SECOND]
          (ask who has 1.2.3.4, and tell it to you, ask for 20 times, send 5 
          probe pre second)
