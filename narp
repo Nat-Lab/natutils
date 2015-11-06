@@ -100,7 +100,7 @@ function usage {
 
      examples:
 
-         tell 1.2.3.4 [I AM MYSELF]
+         tell 1.2.3.4 [THAT I AM MYSELF]
          (tell 1.2.3.4 your mac address)
 
          tell 1.2.3.4 THAT 1.2.3.6 [IS ME]
