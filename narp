@@ -1,16 +1,20 @@
 #!/bin/bash
-# TODO: add rarp/rarp-reply
-# TODO: more human readable
 function ask {
 	local arg="--arp "
-	local target=$(echo $* | awk -F"WHOIS" '{print $2}' | awk -F"[TELL|FROM|FOR|AT]" '{print $1}' | tr -d ' ')
-	local sender_mac=$(echo $* | awk -F"FROM" '{print $2}' | awk -F"[TELL|FOR|AT]" '{print $1}' | tr -d ' ')
-	local sender=$(echo $* | awk -F"TELL" '{print $2}' | awk -F"[FOR|AT]" '{print $1}' | tr -d ' ')
-	local count=$(echo $* | awk -F"FOR" '{print $2}' | awk -F"AT" '{print $1}' | tr -d ' ' | sed -e 's/TIMES//;')
-	local rate=$(echo $* | awk -F"AT" '{print $2}' | tr -d ' ')
-	[[ -z $target ]] && echo "ask: error" && return 1 || local arg="$arg$target"
+	local target=$(echo $* | sed -e 's/AND//;' | awk -F"WHOIS" '{print $2}' | awk -F"[TELL|FROM|FOR|AT]" '{print $1}' | tr -d ' ')
+	local sender_mac=$(echo $* | sed -e 's/AND//;' | awk -F"FROM" '{print $2}' | awk -F"[TELL|FOR|AT]" '{print $1}' | tr -d ' ')
+	local sender=$(echo $* | sed -e 's/IT//; s/TO//;' | awk -F"TELL" '{print $2}' | awk -F"[FOR|AT]" '{print $1}' | tr -d ' ')
+	local count=$(echo $* | sed -e 's/TIMES//;' | awk -F" FOR " '{print $2}' | awk -F"AT" '{print $1}' | tr -d ' ') 
+	local rate=$(echo $* | awk -F" AT " '{print $2}' | sed -e 's/TIMES.*//;' | tr -d ' ')
+	local gw=$(ip route | awk '/default/ { print $3 }')
+	[[ ! -z $DEBUG ]] && echo "+ [target: $target] [sender: $sender] [sender_mac: $sender_mac] [count: $count] [rate: $rate] [arg: $arg] [gw: $gw]"
+	[[ $target == *G* || $target == *ROUTER* ]] && local target=$gw
 	[[ $sender == *ME* || $sender == *I* ]] && unset sender
+	[[ $sender == *G* || $sender == *ROUTER* ]] && local sender=$gw
 	[[ $sender_mac == *ME* || $sender_mac == "MYSELF" ]] && unset sender_mac
+	[[ $sender_mac == *G* || $sender_mac == *ROUTER* ]] && local sender_mac=$(arp -a | grep $gw | awk -F" " '{print $4}')
+	[[ ! -z $DEBUG ]] && echo "- [target: $target] [sender: $sender] [sender_mac: $sender_mac] [count: $count] [rate: $rate] [arg: $arg] [gw: $gw]"
+	[[ -z $target ]] && echo "ask: error" && return 1 || local arg="$arg$target"
 	[[ ! -z $sender ]] && local arg="$arg --arp-sender-ip=$sender"
 	[[ ! -z $sender_mac ]] && local arg="$arg --arp-sender-mac=$sender_mac"
 	[[ ! -z $count ]] && local arg="$arg -c$count" || local arg="$arg -c1"
@@ -23,12 +27,18 @@ function tell {
 	local target=$1
 	local sender=$(echo $* | awk -F"THAT" '{print $2}' | awk -F"[IS|AM|FOR|AT]" '{print $1}' | tr -d ' ')
 	local sender_mac=$(echo $* | sed -e 's/AM/IS/;' | awk -F"IS" '{print $2}' | awk -F"[FOR|AT]" '{print $1}' | tr -d ' ')
-	local count=$(echo $* | awk -F"FOR" '{print $2}' | awk -F"AT" '{print $1}' | sed -e 's/TIMES//;' | tr -d ' ')
-	local rate=$(echo $* | awk -F" AT " '{print $2}' | tr -d ' ')
+	local count=$(echo $* | awk -F" FOR " '{print $2}' | awk -F" AT " '{print $1}' | sed -e 's/TIMES//;' | tr -d ' ')
+	local rate=$(echo $* | awk -F" AT " '{print $2}' | sed -e 's/TIMES.*//;' | tr -d ' ')
 	local sender=$(echo $sender | awk '{print toupper($0)}')
 	local sender_mac=$(echo $sender_mac | awk '{print toupper($0)}')
+	local gw=$(ip route | awk '/default/ { print $3 }')
+	[[ ! -z $DEBUG ]] && echo "+ [target: $target] [sender: $sender] [sender_mac: $sender_mac] [count: $count] [rate: $rate] [arg: $arg] [gw: $gw]"
+	[[ $target == *G* || $target == *ROUTER* ]] && local target=$gw
 	[[ $sender == *ME* || $sender == *I* || $sender == "MY" ]] && unset sender
+	[[ $sender == *G* || $sender == *ROUTER* ]] && local sender=$gw
 	[[ $sender_mac == *ME* || $sender_mac == *MY* ]] && unset sender_mac
+	[[ $sender_mac == *G* || $sender_mac == *ROUTER* ]] && local sender_mac=$(arp -a | grep $gw | awk -F" " '{print $4}')
+	[[ ! -z $DEBUG ]] && echo "- [target: $target] [sender: $sender] [sender_mac: $sender_mac] [count: $count] [rate: $rate] [arg: $arg] [gw: $gw]"
 	[[ -z $target ]] && echo "tell: error" && return 1 || local arg="$arg$target"
 	[[ ! -z $sender ]] && local arg="$arg --arp-sender-ip=$sender"
 	[[ ! -z $sender_mac ]] && local arg="$arg --arp-sender-mac=$sender_mac"
@@ -73,23 +83,27 @@ function usage {
      ask WHOIS x.x.x.x [FROM xx:xx:xx:xx:xx:xx] [TELL x.x.x.x] [FOR X [AT N]]
      
      examples: 
+
+         ask WHOIS GATEWAY [AND TELL IT TO ME]
+         (ask who has gateway's IP address and tell it to you)
      
-         ask WHOIS 1.2.3.4
+         ask WHOIS 1.2.3.4 [AND TELL IT TO ME]
          (ask who has 1.2.3.4 and tell it to you)
 
-         ask WHOIS 1.2.3.4 TELL 1.2.3.6 
+         ask WHOIS 1.2.3.4 [AND] TELL [IT TO] 1.2.3.6 
          (ask who has 1.2.3.4, and tell it to 1.2.3.6)
 
-         ask WHOIS 1.2.3.4 FROM 00:11:22:33:44:55
+         ask WHOIS 1.2.3.4 FROM 00:11:22:33:44:55 [AND TELL IT TO ME]
          (ask who has 1.2.3.4 from 00:11:22:33:44:55, but your IP.)
 
-         ask WHOIS 1.2.3.4 FROM 00:11:22:33:44:55 TELL 1.2.3.6
+         ask WHOIS 1.2.3.4 FROM 00:11:22:33:44:55 [AND] TELL [IT TO] 1.2.3.6
          (ask who has 1.2.3.4 from 00:11:22:33:44:55, and tell 1.2.3.6)
 
-         ask WHOIS 1.2.3.4 FOR 20
+         ask WHOIS 1.2.3.4 [AND TELL IT TO ME] FOR 20 [TIMES]
          (ask who has 1.2.3.4, and tell it to you, ask for 20 times)
 
-         ask WHOIS 1.2.3.4 FOR 20 at 5
+         ask WHOIS 1.2.3.4 [AND TELL IT TO ME] FOR 20 [TIEMS] AT 5 [TIMES PRE 
+         SECOND]
          (ask who has 1.2.3.4, and tell it to you, ask for 20 times, send 5 
          probe pre second)
 
@@ -99,6 +113,12 @@ function usage {
      tell x.x.x.x [THAT x.x.x.x] [IS xx:xx:xx:xx:xx:xx] [FOR X [AT N]]
 
      examples:
+
+         tell GATEWAY THAT I AM MYSELF
+	 (tell you gateway your mac address)
+
+         tell 1.2.3.4 THAT GATEWAY IS ME
+         (tell 1.2.3.4 that you are gateway)
 
          tell 1.2.3.4 [THAT I AM MYSELF]
          (tell 1.2.3.4 your mac address)
