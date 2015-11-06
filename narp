@@ -1,4 +1,6 @@
 #!/bin/bash
+echo "narp ARP sender, using nping, revision 0.2 (C) MagicNAT"
+echo "type 'usage' for usage."
 function ask {
 	local arg="--arp "
 	local target=$(echo $* | sed -e 's/AND//;' | awk -F"WHOIS" '{print $2}' | awk -F"[TELL|FROM|FOR|AT]" '{print $1}' | tr -d ' ')
@@ -8,18 +10,20 @@ function ask {
 	local rate=$(echo $* | awk -F" AT " '{print $2}' | sed 's/[^0-9]*//g')
 	local gw=$(ip route | awk '/default/ { print $3 }')
 	[[ ! -z $DEBUG ]] && echo "+ [target: $target] [sender: $sender] [sender_mac: $sender_mac] [count: $count] [rate: $rate] [arg: $arg] [gw: $gw]"
-	[[ $target == *G* || $target == *ROUTER* ]] && local target=$gw
+	[[ $target == *G* || $target == *R* ]] && local target=$gw
 	[[ $sender == *ME* || $sender == *I* ]] && unset sender
-	[[ $sender == *G* || $sender == *ROUTER* ]] && local sender=$gw
+	[[ $sender == *G* || $sender == *R* ]] && local sender=$gw
+	[[ $sender == *E* ]] && local sender=$(getbroadcast)
 	[[ $sender_mac == *ME* || $sender_mac == "MYSELF" ]] && unset sender_mac
 	[[ $sender_mac == *G* || $sender_mac == *ROUTER* ]] && local sender_mac=$(getmac $gw)
+	[[ $sender_mac == *E* ]] && local sender_mac="ff:ff:ff:ff:ff:ff"
 	[[ ! -z $DEBUG ]] && echo "- [target: $target] [sender: $sender] [sender_mac: $sender_mac] [count: $count] [rate: $rate] [arg: $arg] [gw: $gw]"
 	[[ -z $target ]] && echo "ask: error" && return 1 || local arg="$arg$target"
 	[[ ! -z $sender ]] && local arg="$arg --arp-sender-ip=$sender"
 	[[ ! -z $sender_mac ]] && local arg="$arg --arp-sender-mac=$sender_mac"
 	[[ ! -z $count ]] && local arg="$arg -c$count" || local arg="$arg -c1"
 	[[ ! -z $count && ! -z $rate ]] && local arg="$arg --rate=$rate"
-	[[ -z $DRY_RUN ]] && nping $COMMON $arg | grep ARP || echo nping $COMMON $arg
+	nping $COMMON $arg | grep ARP
 }
 
 function tell {
@@ -33,18 +37,20 @@ function tell {
 	local sender_mac=$(echo $sender_mac | awk '{print toupper($0)}')
 	local gw=$(ip route | awk '/default/ { print $3 }')
 	[[ ! -z $DEBUG ]] && echo "+ [target: $target] [sender: $sender] [sender_mac: $sender_mac] [count: $count] [rate: $rate] [arg: $arg] [gw: $gw]"
-	[[ $target == *G* || $target == *ROUTER* ]] && local target=$gw
+	[[ $target == *G* || $target == *R* ]] && local target=$gw
 	[[ $sender == *ME* || $sender == *I* || $sender == "MY" ]] && unset sender
-	[[ $sender == *G* || $sender == *ROUTER* ]] && local sender=$gw
+	[[ $sender == *G* || $sender == *R* ]] && local sender=$gw
+	[[ $sender == *E* ]] && local sender=$(getbroadcast)
 	[[ $sender_mac == *ME* || $sender_mac == *MY* ]] && unset sender_mac
-	[[ $sender_mac == *G* || $sender_mac == *ROUTER* ]] && local sender_mac=$(getmac $gw)
+	[[ $sender_mac == *G* || $sender_mac == *R* ]] && local sender_mac=$(getmac $gw)
+	[[ $sender_mac == *E* ]] && local sender_mac="ff:ff:ff:ff:ff:ff"
 	[[ ! -z $DEBUG ]] && echo "- [target: $target] [sender: $sender] [sender_mac: $sender_mac] [count: $count] [rate: $rate] [arg: $arg] [gw: $gw]"
 	[[ -z $target ]] && echo "tell: error" && return 1 || local arg="$arg$target"
 	[[ ! -z $sender ]] && local arg="$arg --arp-sender-ip=$sender"
 	[[ ! -z $sender_mac ]] && local arg="$arg --arp-sender-mac=$sender_mac"
 	[[ ! -z $count ]] && local arg="$arg -c$count" || local arg="$arg -c1"
 	[[ ! -z $count && ! -z $rate ]] && local arg="$arg --rate=$rate"
-	[[ -z $DRY_RUN ]] && nping $COMMON $arg | grep ARP || echo nping $COMMON $arg
+	nping $COMMON $arg | grep ARP
 }
 
 function getmac {
@@ -72,6 +78,11 @@ function narp_exec {
 		tell|ask|usage|exit|arp|ifconfig) eval $cmd;;
 		*) echo "narp: $1 not found.";;
 	esac
+}
+
+function getbroadcast {
+	# TODO: get speified interface of cli parameters.
+	ifconfig $(ip route get 8.8.8.8 | awk -F\  '{print $5}') | grep broadcast | awk -F"broadcast " '{print $2}'
 }
 
 function usage {
