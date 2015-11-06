@@ -1,0 +1,109 @@
+#!/bin/bash
+#
+#
+function ask {
+	local arg="--arp "
+	local target=$(echo $* | awk -F"WHOIS" '{print $2}' | awk -F"[TELL|FROM|FOR|AT]" '{print $1}' | tr -d ' ')
+	local sender_mac=$(echo $* | awk -F"FROM" '{print $2}' | awk -F"[TELL|FOR|AT]" '{print $1}' | tr -d ' ')
+	local sender=$(echo $* | awk -F"TELL" '{print $2}' | awk -F"[FOR|AT]" '{print $1}' | tr -d ' ')
+	local count=$(echo $* | awk -F"FOR" '{print $2}' | awk -F"AT" '{print $1}' | tr -d ' ')
+	local rate=$(echo $* | awk -F"AT" '{print $2}' | tr -d ' ')
+	[[ -z $target ]] && echo "ask: error" && return 1 || local arg="$arg$target"
+	[[ ! -z $sender ]] && local arg="$arg --arp-sender-ip=$sender"
+	[[ ! -z $sender_mac ]] && local arg="$arg --arp-sender-mac=$sender_mac"
+	[[ ! -z $count ]] && local arg="$arg -c$count" || local arg="$arg -c1"
+	[[ ! -z $count && ! -z $rate ]] && local arg="$arg --rate=$rate"
+	nping $COMMON $arg | grep ARP
+}
+
+function tell {
+	local arg="--arp --arp-type=ARP-reply "
+	local target=$1
+	local sender=$(echo $* | awk -F"THAT" '{print $2}' | awk -F"[IS|FOR|AT]" '{print $1}' | tr -d ' ')
+	local sender_mac=$(echo $* | awk -F"IS" '{print $2}' | awk -F"[FOR|AT]" '{print $1}' | tr -d ' ')
+	local count=$(echo $* | awk -F"FOR" '{print $2}' | awk -F"AT" '{print $1}' | tr -d ' ')
+	local rate=$(echo $* | awk -F" AT " '{print $2}' | tr -d ' ')
+	[[ -z $target ]] && echo "tell: error" && return 1 || local arg="$arg$target"
+	[[ ! -z $sender ]] && local arg="$arg --arp-sender-ip=$sender"
+	[[ ! -z $sender_mac ]] && local arg="$arg --arp-sender-mac=$sender_mac"
+	[[ ! -z $count ]] && local arg="$arg -c$count" || local arg="$arg -c1"
+	[[ ! -z $count && ! -z $rate ]] && local arg="$arg --rate=$rate"
+	nping $COMMON $arg | grep ARP
+}
+
+function narp {
+	while true
+	do
+		read -p "narp> " cmd
+		narp_exec $cmd
+	done
+}
+
+function narp_exec {
+	[[ -z $1 ]] && return 0
+	case $1 in
+		tell|ask|usage) $cmd;;
+		*) echo "narp: $1 not found.";;
+	esac
+}
+
+function usage {
+	cat << USAGE
+ narp: a simple ARP packet sender, using nping.
+ command line options: 
+
+     -e, --interface <name>           : Use supplied network interface
+     -H, --hide-sent                  : Do not display sent packets
+     -N, --no-capture                 : Do not try to capture replies
+     --privileged                     : Assume user is fully privileged
+     --unprivileged                   : Assume user lacks raw socket privileges
+     --send-eth                       : Send packets at the raw Ethernet layer
+
+ avaliable commands: ask, tell.
+
+ === Command ask ===
+
+     ask command is use to send ARP query, the syntax of ask is: 
+     ask WHOIS x.x.x.x [FROM xx:xx:xx:xx:xx:xx] [TELL x.x.x.x] [FOR X [AT N]]
+     
+     examples: 
+     
+         ask WHOIS 1.2.3.4
+         (ask who has 1.2.3.4 and tell it to you)
+
+         ask WHOIS 1.2.3.4 TELL 1.2.3.6
+         (ask who has 1.2.3.4, and tell it to 1.2.3.6)
+
+         ask WHOIS 1.2.3.4 FROM 00:11:22:33:44:55
+         (ask who has 1.2.3.4 from 00:11:22:33:44:55, but your IP.)
+
+         ask WHOIS 1.2.3.4 FROM 00:11:22:33:44:55 TELL 1.2.3.6
+         (ask who has 1.2.3.4 from 00:11:22:33:44:55, and tell 1.2.3.6)
+
+         ask WHOIS 1.2.3.4 FOR 20
+         (ask who has 1.2.3.4, and tell it to you, ask for 20 times)
+
+         ask WHOIS 1.2.3.4 FOR 20 at 5
+         (ask who has 1.2.3.4, and tell it to you, ask for 20 times, send 5 
+         probe pre second)
+
+ === Command tell ===
+
+     tell command is use to send ARP replys, the syntax of tell is:
+     tell x.x.x.x [THAT x.x.x.x] [IS xx:xx:xx:xx:xx:xx] [FOR X [AT N]]
+
+     examples:
+
+         tell 1.2.3.4
+         (tell 1.2.3.4 your mac address)
+
+         tell 1.2.3.4 THAT 1.2.3.6
+         (tell 1.2.3.4 that 1.2.3.6 have your mac address)
+ 
+         tell 1.2.3.4 THAT 1.2.3.4 IS 00:11:22:33:44:55
+         (tell 1.2.3.4 that 1.2.3.6 have mac address 00:11:22:33:44:55)
+USAGE
+}
+
+COMMON=$*
+narp
