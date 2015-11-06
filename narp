@@ -4,8 +4,8 @@ function ask {
 	local target=$(echo $* | sed -e 's/AND//;' | awk -F"WHOIS" '{print $2}' | awk -F"[TELL|FROM|FOR|AT]" '{print $1}' | tr -d ' ')
 	local sender_mac=$(echo $* | sed -e 's/AND//;' | awk -F"FROM" '{print $2}' | awk -F"[TELL|FOR|AT]" '{print $1}' | tr -d ' ')
 	local sender=$(echo $* | sed -e 's/IT//; s/TO//;' | awk -F"TELL" '{print $2}' | awk -F"[FOR|AT]" '{print $1}' | tr -d ' ')
-	local count=$(echo $* | sed -e 's/TIMES//;' | awk -F" FOR " '{print $2}' | awk -F"AT" '{print $1}' | tr -d ' ') 
-	local rate=$(echo $* | awk -F" AT " '{print $2}' | sed -e 's/TIMES.*//;' | tr -d ' ')
+	local count=$(echo $* | awk -F" FOR " '{print $2}' | awk -F"AT" '{print $1}' | sed 's/[^0-9]*//g') 
+	local rate=$(echo $* | awk -F" AT " '{print $2}' | sed 's/[^0-9]*//g')
 	local gw=$(ip route | awk '/default/ { print $3 }')
 	[[ ! -z $DEBUG ]] && echo "+ [target: $target] [sender: $sender] [sender_mac: $sender_mac] [count: $count] [rate: $rate] [arg: $arg] [gw: $gw]"
 	[[ $target == *G* || $target == *ROUTER* ]] && local target=$gw
@@ -19,7 +19,7 @@ function ask {
 	[[ ! -z $sender_mac ]] && local arg="$arg --arp-sender-mac=$sender_mac"
 	[[ ! -z $count ]] && local arg="$arg -c$count" || local arg="$arg -c1"
 	[[ ! -z $count && ! -z $rate ]] && local arg="$arg --rate=$rate"
-	nping $COMMON $arg | grep ARP
+	[[ -z $DRY_RUN ]] && nping $COMMON $arg | grep ARP || echo nping $COMMON $arg
 }
 
 function tell {
@@ -27,8 +27,8 @@ function tell {
 	local target=$1
 	local sender=$(echo $* | awk -F"THAT" '{print $2}' | awk -F"[IS|AM|FOR|AT]" '{print $1}' | tr -d ' ')
 	local sender_mac=$(echo $* | sed -e 's/AM/IS/;' | awk -F"IS" '{print $2}' | awk -F"[FOR|AT]" '{print $1}' | tr -d ' ')
-	local count=$(echo $* | awk -F" FOR " '{print $2}' | awk -F" AT " '{print $1}' | sed -e 's/TIMES//;' | tr -d ' ')
-	local rate=$(echo $* | awk -F" AT " '{print $2}' | sed -e 's/TIMES.*//;' | tr -d ' ')
+	local count=$(echo $* | awk -F" FOR " '{print $2}' | awk -F" AT " '{print $1}' | sed 's/[^0-9]*//g')
+	local rate=$(echo $* | awk -F" AT " '{print $2}' | sed 's/[^0-9]*//g')
 	local sender=$(echo $sender | awk '{print toupper($0)}')
 	local sender_mac=$(echo $sender_mac | awk '{print toupper($0)}')
 	local gw=$(ip route | awk '/default/ { print $3 }')
@@ -44,7 +44,7 @@ function tell {
 	[[ ! -z $sender_mac ]] && local arg="$arg --arp-sender-mac=$sender_mac"
 	[[ ! -z $count ]] && local arg="$arg -c$count" || local arg="$arg -c1"
 	[[ ! -z $count && ! -z $rate ]] && local arg="$arg --rate=$rate"
-	nping $COMMON $arg | grep ARP 
+	[[ -z $DRY_RUN ]] && nping $COMMON $arg | grep ARP || echo nping $COMMON $arg
 }
 
 function getmac {
