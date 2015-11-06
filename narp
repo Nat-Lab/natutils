@@ -129,6 +129,9 @@ function usage {
          (ask who has 1.2.3.4, and tell it to you, ask for 20 times, send 5 
          probe pre second)
 
+         ask WHOIS GATEWAY FROM EVERYONE [AND] TELL [IT TO] EVERYBODY
+         (ask who is gateway as brodcast host, thus gateway broadcast it's MAC)
+
  === Command tell ===
 
      tell command is use to send ARP replys, the syntax of tell is:
@@ -150,6 +153,35 @@ function usage {
  
          tell 1.2.3.4 THAT 1.2.3.4 IS 00:11:22:33:44:55
          (tell 1.2.3.4 that 1.2.3.6 have mac address 00:11:22:33:44:55)
+
+         tell EVERYBODY THAT GATEWAY IS ME
+	 (tell everybody that you are their gateway)
+
+ === Keywords ===
+
+     GATEWAY            : Your router/gateway's MAC/IP
+     EVERYONE/EVERYBODY : Broadcast host's MAC/IP
+     I/ME/MYSELF        : Your MAC/IP
+
+     Those keywords, can be use in both ask and tell command. (See examples 
+     abrove)
+
+ === Natrual language ===
+
+     narp allow flxeable systax. For example, write these ways are allowed:
+
+         tell EVERYBODY THAT GATEWAY IS ME FOR 100 TIMES AT THE RATE OF 10 
+         PACKET PER SECOND
+
+         tell GATEWAY THAT I AM 1.2.3.5 FOR 100 TIMES AT THE RATE OF 10/s
+
+         ask WHOIS GATEWAY FROM EVERYONE AND TELL EVERYBODY FOR 100 TIMES AT A
+         RATE OF 10 ARP PER SECOND
+
+         ...
+
+         and so many more.
+
 USAGE
 }
 
