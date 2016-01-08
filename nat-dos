@@ -96,6 +96,13 @@ function usage {
 	echo "NOTICE: "
 	echo "  if 'proxy_list' is not defined, will try to fetch one."
 	echo "  use '_RAND_' in url to add random variable while attack (bypass chache)."
+	echo
+	echo "EXAMPLES:"
+	echo "  nat-dos --url 'http://example/index.php?id=_RAND_' --autoattack on"
+	echo "  nat-dos --url 'http://example/index.php?id=_RAND_' --stop-code 503"
+	echo "  nat-dos --url 'http://example/index.php?id=_RAND_' --proxy-timeout 5\\"
+	echo "          --read-cookie true --thread 20 --nowait --killcurl true"
+	echo
 	exit 1
 }
 
