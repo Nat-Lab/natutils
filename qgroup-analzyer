@@ -1,0 +1,120 @@
+#!/bin/bash
+
+bkn=""
+COOKIE=""
+
+USERS_JSON_URL="http://qun.qq.com/cgi-bin/qun_mgr/search_group_members"
+USERS_GET_PAYLOAD="gc=_GID_&st=0&end=1000&sort=0&bkn=$bkn"
+
+GLIST_JSON_URL="http://qun.qq.com/cgi-bin/qun_mgr/get_group_list"
+GLIST_GET_PAYLOAD="bkn=$bkn"
+
+# usage: getUsersList <gid>
+function getUsersList {
+	curl $USERS_JSON_URL --data "$(echo $USERS_GET_PAYLOAD | sed -e "s/_GID_/$1/")" -H "$COOKIE" 2> /dev/null | sed -e 's/{"card":/§{"card":/g'|tr '§' '\n'|awk -F\" '{print $33 "|" $4 "|" $22 }' | sed -e 's/|:/\|/g; s/}\,//g; s/://g; s/}\],//g; 1d;' 
+}
+
+function getGroupList {
+	curl $GLIST_JSON_URL --data $GLIST_GET_PAYLOAD -H "$COOKIE" 2> /dev/null | sed 's/"gc"/§"gc"/g' | tr '§' '\n' | awk -F':' '{print $2 "|" $3}' | sed -e 's/,"gn"//g; s/","owner"//g; s/"//g; 1d;'
+}
+
+function getAllUsers {
+	getGroupList > groups.txt
+	local groups=$(cat groups.txt)
+	for group in $groups
+	do
+		local gid=$(echo $group|awk -F"|" '{print $1}')
+		echo -n "[$(date)] Getting $group... "
+		getUsersList $group > group-$gid.txt
+		echo "done"
+		sleep 1
+	done
+}
+
+function getUsersListFromList {
+	cat group-*.txt | awk -F"|" '{print $1}' | sort | uniq -d
+}
+
+
+# usage: findJoinedGroupByID <uid>
+function findJoinedGroupByID {
+	grep -lir "$1" . | grep group- | awk -F"group-|.txt" '{print $2}'
+}
+
+function getGroupNameByID {
+	cat groups.txt | grep $1 | awk -F"|" '{print $2}' | sed -e 's/&nbsp;/ /g;'
+}
+
+# usage: ListJoinedGroupByID [uid]
+function ListJoinedGroupByID {
+	local users=$(getUsersListFromList)
+	let thread=0
+	for user in $users
+	do
+		[[ -z $1 || $1 == $user ]] && {
+			[[ -z $1 ]] && 
+			echo -n "[$(date)] Progressing $user... "
+			echo "User: $(getUsernameByID $user) ($user)" > user-$user.txt
+			echo "-------------------------------------------------------------------------------" >> user-$user.txt
+			local this_joined=$(findJoinedGroupByID $user) 
+			for this_group in $this_joined
+			do
+				echo "$(getGroupNameByID $this_group) ($this_group) as $(getUsernameInGroupByID $this_group $user)" >> user-$user.txt
+			done
+			echo "-------------------------------------------------------------------------------" >> user-$user.txt
+			echo >> user-$user.txt
+		}
+	done
+	[[ -z $1 ]] && cat user-*.txt || cat user-$1.txt
+}
+
+function getUsernameByID {
+	cat group-*.txt | grep $1 | tail -n1 | awk -F "|" '{print $3}' | sed -e 's/&nbsp;/ /g;'
+}
+
+function getUsernameInGroupByID {
+	local name=$(cat group-$1.txt | grep $2 | awk -F "|" '{print $2}')
+	[[ -z $name ]] && name=$(cat group-$1.txt | grep $2 | awk -F "|" '{print $3}')
+	echo $name | sed -e 's/&nbsp;/ /g;'
+}
+
+function showCommonGroups {
+	rm common.txt 2> /dev/null
+	for user in $(ls user-*.txt)
+	do
+		local this_uid=$(echo $user | awk -F"user-|.txt" '{print $2}')
+		echo $(getUsernameByID $this_uid) $this_uid: $(echo $(cat $user | wc -l | tr -d ' ')-4|bc) >> common.txt
+	done
+	cat common.txt | sort -k2nr -t":"
+}
+
+function csvExport {
+	rm export.csv 2> /dev/null
+	local users=$(getUsersListFromList)
+	for user in $users
+	do
+		echo "Progressing $user..."
+		local this_name=$(getUsernameByID $user)
+		local this_joined=$(findJoinedGroupByID $user)
+		for this_group in $this_joined
+		do
+			local this_groupname=$(getGroupNameByID $this_group)
+			local this_ingroup_nick=$(getUsernameInGroupByID $this_group $user)
+			echo "$this_group,$this_groupname,$user,$this_name,$this_ingroup_nick" >> export.csv
+		done
+	done
+}
+
+function usage {
+	echo "QQ Gruop Analzyer (C) MagicNAT 2016"
+	echo ""
+	echo "Set your bkn and COOKIE variable in this script to continue."
+	echo
+	echo "You can get those variable in the POST request of the Group Management page at"
+	echo "qun.qq.com."
+	echo
+	echo "Usages:"
+	echo "What? Usage? What is that?"
+}
+
+[[ -z $* ]] && usage || $*
