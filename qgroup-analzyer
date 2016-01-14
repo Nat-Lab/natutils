@@ -52,8 +52,7 @@ function ListJoinedGroupByID {
 	for user in $users
 	do
 		[[ -z $1 || $1 == $user ]] && {
-			[[ -z $1 ]] && 
-			echo -n "[$(date)] Progressing $user... "
+			[[ -z $1 ]] && echo -n "[$(date)] Progressing $user... "
 			echo "User: $(getUsernameByID $user) ($user)" > user-$user.txt
 			echo "-------------------------------------------------------------------------------" >> user-$user.txt
 			local this_joined=$(findJoinedGroupByID $user) 
