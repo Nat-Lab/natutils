@@ -58,14 +58,15 @@ function getGroupNameByID {
 	cat groups.txt | grep $1 | awk -F"|" '{print $2}' | sed -e 's/&nbsp;/ /g;'
 }
 
-# usage: ListJoinedGroupByID [uid]
-function ListJoinedGroupByID {
+# usage: ListJoinedGroup [uid|uname]
+function ListJoinedGroup {
 	local users=$(getUsersListFromList)
 	let thread=0
+	[[ ! -z $1 ]] && _name=$(cat group-*.txt friends.txt 2> /dev/null | grep $1 | tail -n1 | awk -F"|" '{print $1}')
 	for user in $users
 	do
-		[[ -z $1 || $1 == $user ]] && {
-			[[ -z $1 ]] && echo "[$(date)] Progressing $user... "
+		[[ -z $1 || $_name == $user ]] && {
+			[[ -z $_target ]] && echo "[$(date)] Progressing $user... "
 			echo "User: $(getUsernameByID $user) ($user)" > user-$user.txt
 			echo "-------------------------------------------------------------------------------" >> user-$user.txt
 			local this_joined=$(findJoinedGroupByID $user) 
@@ -77,7 +78,7 @@ function ListJoinedGroupByID {
 			echo >> user-$user.txt
 		}
 	done
-	[[ -z $1 ]] && cat user-*.txt || cat user-$1.txt 2> /dev/null
+	[[ -z $1 ]] && cat user-*.txt || cat user-$_name.txt 2> /dev/null
 }
 
 function getUsernameByID {
