@@ -12,6 +12,27 @@ GLIST_GET_PAYLOAD="bkn=$bkn"
 FRIENDLIST_JSON_URL="http://qun.qq.com/cgi-bin/qun_mgr/get_friend_list"
 FRIENDLIST_PAYLOAD="bkn=$bkn"
 
+# usage: listJoinedOfGroupMembers <gid>
+# do getAllUsers before use
+function listJoinedOfGroupMembers {
+	for member in $(cat group-$1.txt)
+	do
+		local _member=$(echo $member | awk -F"|" '{print $1}')
+		[[ ! -z $_member ]] && ListJoinedGroup $_member
+	done
+
+}
+
+# usage: listFriendsInGroup <gid>
+# do getAllUsers, getFriend before use
+function listFriendsInGroup {
+	for member in $(cat group-$1.txt)
+	do
+		local _member=$(echo $member | awk -F"|" '{print $1}')
+		[[ ! -z $_member && ! -z $(cat friends.txt | awk -F"|" '{print $1}' | grep $_member) ]] && ListJoinedGroup $_member
+	done
+}
+
 # usage: getUsersList <gid>
 function getUsersList {
 	curl $USERS_JSON_URL --data "$(echo $USERS_GET_PAYLOAD | sed -e "s/_GID_/$1/")" -H "$COOKIE" 2> /dev/null | sed -e 's/{"card":/§{"card":/g'|tr '§' '\n'|awk -F\" '{print $33 "|" $4 "|" $22 }' | sed -e 's/|:/\|/g; s/}\,//g; s/://g; s/}\],//g; 1d;' 
@@ -21,9 +42,12 @@ function getGroupList {
 	curl $GLIST_JSON_URL --data $GLIST_GET_PAYLOAD -H "$COOKIE" 2> /dev/null | sed 's/"gc"/§"gc"/g' | tr '§' '\n' | awk -F':' '{print $2 "|" $3}' | sed -e 's/,"gn"//g; s/","owner"//g; s/"//g; 1d;'
 }
 
-function getFriendGroup {
-	[[ ! -e friends.txt ]] && curl $FRIENDLIST_JSON_URL --data $FRIENDLIST_PAYLOAD -H "$COOKIE" 2> /dev/null | sed -e 's/,{/§,{/g;' | tr '§' '\n' | awk -F'"name":"' '{print $2}' | sed -e 's/","uin":/|/g; s/}$//g; s/}\]}}//g;' | awk -F"|" '{print $2 "|" $1}' > friends.txt
+function getFriend {
+	curl $FRIENDLIST_JSON_URL --data $FRIENDLIST_PAYLOAD -H "$COOKIE" 2> /dev/null | sed -e 's/,{/§,{/g;' | tr '§' '\n' | awk -F'"name":"' '{print $2}' | sed -e 's/","uin":/|/g; s/}$//g; s/}\]}}//g;' | awk -F"|" '{print $2 "|" $1}' > friends.txt
+}
 
+# getFriendGroup: do getFriend before use
+function getFriendGroup {
 	for friend in $(cat friends.txt)
 	do
 		local this_uid=$(echo $friend | awk -F"|" '{print $1}')
@@ -44,6 +68,7 @@ function getAllUsers {
 	done
 }
 
+# getUsersListFromList: do getAllUsers before use
 function getUsersListFromList {
 	cat group-*.txt | awk -F"|" '{print $1}' | sort | uniq -d
 }
@@ -54,11 +79,13 @@ function findJoinedGroupByID {
 	grep -lir "$1" . | grep group- | awk -F"group-|.txt" '{print $2}'
 }
 
+# getGroupNameByID: do getAllUsers before use
 function getGroupNameByID {
 	cat groups.txt | grep $1 | awk -F"|" '{print $2}' | sed -e 's/&nbsp;/ /g;'
 }
 
 # usage: ListJoinedGroup [uid|uname]
+# do getAllUsers before use
 function ListJoinedGroup {
 	local users=$(getUsersListFromList)
 	let thread=0
@@ -66,7 +93,7 @@ function ListJoinedGroup {
 	for user in $users
 	do
 		[[ -z $1 || $_name == $user ]] && {
-			[[ -z $_target ]] && echo "[$(date)] Progressing $user... "
+			[[ ! -z $_target ]] && echo "[$(date)] Progressing $user... "
 			echo "User: $(getUsernameByID $user) ($user)" > user-$user.txt
 			echo "-------------------------------------------------------------------------------" >> user-$user.txt
 			local this_joined=$(findJoinedGroupByID $user) 
@@ -91,6 +118,7 @@ function getUsernameInGroupByID {
 	echo $name | sed -e 's/&nbsp;/ /g;'
 }
 
+# showCommonGroups: do ListJoinedGroup before use
 function showCommonGroups {
 	rm common.txt 2> /dev/null
 	for user in $(ls user-*.txt)
@@ -101,6 +129,7 @@ function showCommonGroups {
 	cat common.txt | sort -k2nr -t":"
 }
 
+# csvExport: do getAllUsers before use
 function csvExport {
 	rm export.csv 2> /dev/null
 	local users=$(getUsersListFromList)
@@ -118,6 +147,38 @@ function csvExport {
 	done
 }
 
+# prologExport: do getAllUsers before use
+function prologExport {
+	rm export.prolog 2> /dev/null
+	local users=$(getUsersListFromList)
+	for user in $users
+	do
+		echo "Progressing $user..."
+		local this_joined=$(findJoinedGroupByID $user)
+		for this_group in $this_joined
+		do
+			echo "member($this_group,$user)." >> export.prolog
+		done
+	done
+}
+
+# usage: listUsersJoinedAllGivenGroups <gid> <gid> [gid] [gid] ...
+# do prologExport before use
+# dependency: swipl
+function listUsersJoinedAllGivenGroups {
+	[[ -z $2 ]] && return 1;
+	for grp in $*
+	do
+		local exec_arg="${exec_arg}member($grp,X),"
+	done
+	exec_arg="${exec_arg}write(X),nl,fail."
+	local users=$(echo $exec_arg | swipl -s export.prolog 2> /dev/null | sed -e 's/false\.//; s/^$//g;')
+	for user in $users
+	do
+		echo "$(getUsernameByID $user) ($user)"
+	done
+}
+
 function usage {
 	echo "QQ Gruop Analzyer (C) MagicNAT 2016"
 	echo ""
@@ -127,7 +188,13 @@ function usage {
 	echo "qun.qq.com."
 	echo
 	echo "Usages:"
-	echo "What? Usage? What is that?"
+	echo "listJoinedOfGroupMembers <gid>"
+	echo "listFriendsInGroup <gid> (do getUsersList, getAllUsers first)"
+	echo "getFriendGroup (do getFriend before use)"
+	echo "ListJoinedGroup [uid|uname] (do getAllUsers first)"
+	echo "showCommonGroups (do ListJoinedGroup first)"
+	echo "csvExport, prologExport (do getAllUsers first)"
+	echo "listUsersJoinedAllGivenGroups <gid1> <gid2> [gid3] ... [gidN] (do prologExport first, also, install swipl)"
 }
 
 [[ -z $* ]] && usage || $*
