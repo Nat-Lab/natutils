@@ -12,13 +12,22 @@ GLIST_GET_PAYLOAD="bkn=$bkn"
 FRIENDLIST_JSON_URL="http://qun.qq.com/cgi-bin/qun_mgr/get_friend_list"
 FRIENDLIST_PAYLOAD="bkn=$bkn"
 
-# usage: listJoinedOfGroupMembers <gid>
+function ProgressBar {
+	let _progress=(${1}*100/${2}*100)/100
+	let _done=(${_progress}*4)/10
+	let _left=40-$_done
+	_fill=$(printf "%${_done}s")
+	_empty=$(printf "%${_left}s")
+	printf "\r[*] Generating: [${_fill// /#}${_empty// /-}] ${_progress}%%"
+}
+
+# usage: listJoinedOfGroupMembers <gid> [grep_key] 
 # do getAllUsers before use
 function listJoinedOfGroupMembers {
 	for member in $(cat group-$1.txt)
 	do
 		local _member=$(echo $member | awk -F"|" '{print $1}')
-		[[ ! -z $_member ]] && ListJoinedGroup $_member
+		[[ ! -z $_member ]] && ListJoinedGroup $_member $2
 	done
 
 }
@@ -51,7 +60,7 @@ function getFriendGroup {
 	for friend in $(cat friends.txt)
 	do
 		local this_uid=$(echo $friend | awk -F"|" '{print $1}')
-		[[ ! -z $this_uid ]] && ListJoinedGroupByID $this_uid
+		[[ ! -z $this_uid ]] && ListJoinedGroup $this_uid
 	done
 }
 
@@ -84,25 +93,28 @@ function getGroupNameByID {
 	cat groups.txt | grep $1 | awk -F"|" '{print $2}' | sed -e 's/&nbsp;/ /g;'
 }
 
-# usage: ListJoinedGroup [uid|uname]
+# usage: ListJoinedGroup [uid|uname] [grep_key]
 # do getAllUsers before use
 function ListJoinedGroup {
 	local users=$(getUsersListFromList)
-	let thread=0
+	let id=0
+	local total=$(getUsersListFromList|wc -l)
 	[[ ! -z $1 ]] && _name=$(cat group-*.txt friends.txt 2> /dev/null | grep $1 | tail -n1 | awk -F"|" '{print $1}')
 	for user in $users
 	do
+		let id++
+		[[ -z $1 ]] && ProgressBar $id $total
 		[[ -z $1 || $_name == $user ]] && {
-			[[ ! -z $_target ]] && echo "[$(date)] Progressing $user... "
 			echo "User: $(getUsernameByID $user) ($user)" > user-$user.txt
 			echo "-------------------------------------------------------------------------------" >> user-$user.txt
 			local this_joined=$(findJoinedGroupByID $user) 
 			for this_group in $this_joined
 			do
-				echo "$(getGroupNameByID $this_group) ($this_group) as $(getUsernameInGroupByID $this_group $user)" >> user-$user.txt
+				echo "$(getGroupNameByID $this_group) ($this_group) as $(getUsernameInGroupByID $this_group $user)" | grep -i "$2" >> user-$user.txt
 			done
 			echo "-------------------------------------------------------------------------------" >> user-$user.txt
 			echo >> user-$user.txt
+			[[ $(cat user-$user.txt | wc -l | tr -d ' ') == 4 ]] && rm user-$user.txt 
 		}
 	done
 	[[ -z $1 ]] && cat user-*.txt || cat user-$_name.txt 2> /dev/null
@@ -132,10 +144,13 @@ function showCommonGroups {
 # csvExport: do getAllUsers before use
 function csvExport {
 	rm export.csv 2> /dev/null
+	let id=0
+	local total=$(getUsersListFromList|wc -l)
 	local users=$(getUsersListFromList)
 	for user in $users
 	do
-		echo "Progressing $user..."
+		let id++
+		ProgressBar $id $total
 		local this_name=$(getUsernameByID $user)
 		local this_joined=$(findJoinedGroupByID $user)
 		for this_group in $this_joined
@@ -151,9 +166,12 @@ function csvExport {
 function prologExport {
 	rm export.prolog 2> /dev/null
 	local users=$(getUsersListFromList)
+	let id=0
+	local total=$(getUsersListFromList|wc -l)
 	for user in $users
 	do
-		echo "Progressing $user..."
+		let id++
+		ProgressBar $id $total
 		local this_joined=$(findJoinedGroupByID $user)
 		for this_group in $this_joined
 		do
