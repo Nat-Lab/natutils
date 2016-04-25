@@ -14,7 +14,7 @@ function main {
 	read -p "View the bugs after (YYYY-MM-DD): " key
 	read -p "                     Search from: " from 
 	read -p "                              To: " to
-	for page in $(seq $from $to)
+	for ((page=from; page<to; page++))
 	do
 		fetch $page > $TMP 2> /dev/null
 		for bug in $(cat $TMP)
