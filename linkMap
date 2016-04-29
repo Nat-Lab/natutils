@@ -4,19 +4,19 @@
 # example: MAX_DEPTH=10 ./linkMap nat.moe
 
 TABS=0
-MIN_ALEXA='99999' # NO! NO BIG SITES! NO COME BACK CRAWLERRRRRR!
+MIN_ALEXA='300000' # How smart... ¯\_(ツ)_/¯
 
 temp=$(mktemp -d)
 cd $temp
 touch alexa.cache
 
-GLOBAL_IGNORE='djangobook|wordpress|twitter|facebook|baidu|google'
+GLOBAL_IGNORE='fyzhuji|djangobook|wordpress|twitter|facebook|baidu|google'
 
 [[ -z $MAX_DEPTH ]] && MAX_DEPTH=51 || let MAX_DEPTH++ || exit 1
 
 function checkAlexa {
-	grep "$1" < "$temp/alexa.cache" > /dev/null || echo "$1:$(curl -s "http://www.alexa.com/siteinfo/$1" | tr -d " \n," | awk -F'awis-->' '{print $2}' | awk -F'<' '{print $1}')" >> "$temp/alexa.cache"
-	local rank=$(grep "$1" < "$temp/alexa.cache" | awk -F':' '{print $2}')
+	grep -E "^$1:" < "$temp/alexa.cache" > /dev/null || echo "$1:$(curl -s "http://www.alexa.com/siteinfo/$1" | tr -d " \n," | awk -F'awis-->' '{print $2}' | awk -F'<' '{print $1}')" >> "$temp/alexa.cache"
+	local rank=$(grep -E "^$1:" < "$temp/alexa.cache" | awk -F':' '{print $2}')
 	[[ -z $rank || $rank -gt $MIN_ALEXA ]] && return 0
 	return 1
 }
