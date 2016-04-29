@@ -1,0 +1,53 @@
+#!/bin/bash
+# Seriously, if you know BaSH well, DO NOT read this code.
+# You gonna kill yourself, or maybe kill me, if you do.
+# example: MAX_DEPTH=10 ./linkMap nat.moe
+
+TABS=0
+MIN_ALEXA='99999' # NO! NO BIG SITES! NO COME BACK CRAWLERRRRRR!
+
+temp=$(mktemp -d)
+cd $temp
+touch alexa.cache
+
+GLOBAL_IGNORE='djangobook|wordpress|twitter|facebook|baidu|google'
+
+[[ -z $MAX_DEPTH ]] && MAX_DEPTH=51 || let MAX_DEPTH++ || exit 1
+
+function checkAlexa {
+	grep "$1" < "$temp/alexa.cache" > /dev/null || echo "$1:$(curl -s "http://www.alexa.com/siteinfo/$1" | tr -d " \n," | awk -F'awis-->' '{print $2}' | awk -F'<' '{print $1}')" >> "$temp/alexa.cache"
+	local rank=$(grep "$1" < "$temp/alexa.cache" | awk -F':' '{print $2}')
+	[[ -z $rank || $rank -gt $MIN_ALEXA ]] && return 0
+	return 1
+}
+
+function getLinksByURL {
+	[[ $TABS == $MAX_DEPTH ]] && return 
+	curl --max-time 10 -sL "$1" | awk -F'href=' '{print $2}' | awk -F'>| ' '{print $1}' | sort | uniq | grep 'http' | awk -F"/" '{print $3}' | tr -d "\"'" | sort | uniq
+}
+
+function showTabs {
+	for i in $(seq 1 $1)
+	do
+		echo -n "  "
+	done
+}
+
+function showSiteLinkOut {
+	let TABS++
+	mkdir "$1" 2> /dev/null; cd "$1"
+	getLinksByURL "$1" | grep -vE "$1|$(cat $temp/DONE)" | while read -r out
+	do
+		echo -n "|$1" >> $temp/DONE
+		[[ $TABS -lt $MAX_DEPTH && -z $(grep -E "$(cat $temp/DONE)" <<< "$out") && ! "$1" == "$out" && -z $(grep -E "$GLOBAL_IGNORE" <<< "$out") && ! "$1" == "$out" ]] && checkAlexa "$out" && echo "[$TABS - $(pwd | awk -F"$temp" '{print $2}')] >>> $out" && showSiteLinkOut "$out" && let TABS-- && cd ..
+		echo 0 > /dev/null
+	done
+}
+
+echo "working at $temp"
+echo ">>> TRACE to $1 START"
+echo -n "$1" > $temp/DONE
+showSiteLinkOut $1
+cd $temp
+tree -d $1
+rm -r $temp
