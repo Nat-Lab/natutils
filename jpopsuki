@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# jpopsuki configuration 
+cookie='Cookie: PHPSESSID=...'           # your jpopsuki's cookie, get it by doing "alert(document.cookie)" in your browser's console
+query_string='order_by=s4&order_way=ASC' # get torrents in the order of size, ascending
+start_page=1                             # start from page 1
+end_page=40                              # end at page 40 (seed #2000)
+
+# transmissiond configuration
+transmission_host='http://example.com:9091/transmission' # URL to transmission PRC
+transmission_auth='username:password'                    # your transmission RPC credential 
+
+# uncomment next line if you done configuration.  
+#run=true 
+
+[[ -z $run ]] && echo "[*] Configure Required!" && exit 1
+
+tmp=$(mktemp)
+
+for page in $(seq $start_page $end_page)
+do
+	echo "[$(date)] Started Page $page"
+	curl -s "http://jpopsuki.eu/torrents.php?page=${page}&${query_string}" | grep 'action=download' | sed 's/\&amp;/\&/g; s/&quot;/"/g;' | awk -F'href="' '{print $2}' | awk -F'"' '{print $1}' | sed -e 's/^/http:\/\/jpopsuki.eu\//g' | while read -r url
+		do
+			echo -n "[*] Procressing torrent id $(awk -F"id=|&" '{print $3}' <<< $url)..."
+			transmission-remote $transmission_host -n $transmission_auth -a $url > $tmp
+			[[ ! $? == 0 ]] && echo " err: $(cat $tmp)" || echo " ok"
+		done
+done
+rm $tmp
+echo "[$(date)] Done"

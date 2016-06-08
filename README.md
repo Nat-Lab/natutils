@@ -28,6 +28,7 @@
 - narp: a simple ARP packet sender, using nping.
 - qgroup-analyzer: QQ Gruop Analzyer
 - linkMap: Website links map
+- jpopsuki: jpopsuki.eu seed batch downloader
 
 ---
 
