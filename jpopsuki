@@ -20,7 +20,7 @@ tmp=$(mktemp)
 for page in $(seq $start_page $end_page)
 do
 	echo "[$(date)] Started Page $page"
-	curl -H $cookie -s "http://jpopsuki.eu/torrents.php?page=${page}&${query_string}" | grep 'action=download' | sed 's/\&amp;/\&/g; s/&quot;/"/g;' | awk -F'href="' '{print $2}' | awk -F'"' '{print $1}' | sed -e 's/^/http:\/\/jpopsuki.eu\//g' | while read -r url
+	curl -H "$cookie" -s "http://jpopsuki.eu/torrents.php?page=${page}&${query_string}" | grep 'action=download' | sed 's/\&amp;/\&/g; s/&quot;/"/g;' | awk -F'href="' '{print $2}' | awk -F'"' '{print $1}' | sed -e 's/^/http:\/\/jpopsuki.eu\//g' | while read -r url
 		do
 			echo -n "[*] Procressing torrent id $(awk -F"id=|&" '{print $3}' <<< $url)..."
 			transmission-remote $transmission_host -n $transmission_auth -a $url > $tmp
