@@ -1,0 +1,101 @@
+#!/bin/bash
+
+trap 'quit' 2 3 15
+
+TRANSLATE_TARGETS="auto zh en yue wyw jp kor fra spa th ara ru pt de it el nl pl bul est dan fin cs rom slo swe hu cht"
+
+[[ ! -e ~/.bdtrc ]] && cat > ~/.bdtrc << CAT
+from="auto"
+to="en"
+CAT
+
+. ~/.bdtrc
+
+quit() {
+	cat > ~/.bdtrc << CAT
+from="$from"
+to="$to"
+CAT
+	exit 0
+}
+
+# usage: translate <from> <to> <text>
+translate() {
+
+	[[ -z $3 ]] && return 
+	[[ $2 == auto ]] && echo "error: can't translate to auto." && return 
+
+	respond="$(curl -s 'http://fanyi.baidu.com/v2transapi' \
+			-d "from=$1" -d "to=$2" \
+			-d "query=$3" \
+			-d "transtype=realtime" -d "simple_means_flag=3")"
+
+	result="$(jq ".trans_result .data [] .dst" <<< "$respond")"
+
+	[[ $from == auto ]] && from="$(jq ".trans_result .from" <<< "$respond" | tr -d '"')"
+	
+	[[ ! -z $result ]] && sed -e 's/^"//; s/"$//;' <<< "$result" | tee /dev/stderr 2| pbcopy || echo "error."
+
+}
+
+
+tr_check_para() {
+
+	(grep -qE "$1" <<< "$(tr ' ' '\n' <<< "$TRANSLATE_TARGETS")") && return 
+	echo "warning: no such language: '$1', available langs: $TRANSLATE_TARGETS"
+
+}
+
+echo "baidu translate cli, (c) nato-lab 2016"
+echo "type !h for help"
+echo "type text and hit enter to translate, result will be copy to clipboard."
+
+while true
+do
+	read -p "$from-$to> " strs
+	IFS=";"
+	for str in $strs
+	do
+		str="$(sed -e 's/^ *//;' <<< "$str")"
+		case $str in
+			'!h'*)
+				echo '!f <lang> : set from.'
+				echo '!t <lang> : set to.'
+				echo '!s        : swap from & to.'
+				echo '!p        : translate copied text.'
+				echo '!r        : show last API raw JSON.'
+				echo '!l        : list possible langs.'
+				echo '!h        : this text.'
+				echo '!q        : exit.'
+			;;
+			'!f '*)
+				from="$(awk -F"!f " '{print $2}' <<< "$str" | tr -d ' ')"
+				tr_check_para $from
+			;;
+			'!t '*)
+				to="$(awk -F"!t " '{print $2}' <<< "$str" | tr -d ' ')"
+				tr_check_para $to
+			;;
+			'!s'*)
+				tmp=$to
+				to=$from
+				from=$tmp
+			;;
+			'!p'*)
+				translate "$from" "$to" "$(pbpaste)"
+			;;
+			'!r'*)
+				jq -c <<< "$respond"
+			;;
+			'!l'*)
+				echo "$TRANSLATE_TARGETS"
+			;;
+			'!q'*)
+				quit
+			;;
+			*)
+				translate "$from" "$to" "$str" 
+			;;
+		esac
+	done
+done

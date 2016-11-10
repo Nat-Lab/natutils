@@ -29,6 +29,8 @@
 - qgroup-analyzer: QQ Gruop Analzyer
 - linkMap: Website links map
 - jpopsuki: jpopsuki.eu seed batch downloader
+- baidu\_translate: Baidu Translate CLI.
+- m3u.js: m3u parser in Javascript.
 
 ---
 
