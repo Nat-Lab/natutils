@@ -31,6 +31,7 @@
 - jpopsuki: jpopsuki.eu seed batch downloader
 - baidu\_translate: Baidu Translate CLI.
 - m3u.js: m3u parser in Javascript.
+- osu\_map\_pp\_stat: stat PP of listed range of osu! maps.
 
 ---
 

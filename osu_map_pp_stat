@@ -1,0 +1,24 @@
+#!/bin/bash
+# osu map PP stat
+# deps.: https://stedolan.github.io/jq/
+#        https://github.com/Francesco149/oppai
+
+outfile='./output.json'
+status_file='./status'
+ends=1090149
+starts=20000
+
+[[ ! -e $status_file ]] && touch $status_file
+
+for ((id=starts; id<ends; id++)) 
+do
+	echo -n "[$id/$((ends-starts))] "
+	(grep -qE "^$id$" < $status_file) && echo "(already done, skip.)" && continue 
+	raw="$(curl -s --max-time 10 "https://osu.ppy.sh/osu/$id")"
+	[[ -z $raw ]] && echo "(empty osu file.)" && continue 
+	json="$(./oppai - -ojson <<< "$raw")"
+	[[ -z $json ]] && echo "(empty oppai respond.)" && continue 
+	echo "$json" >> $outfile
+	echo "$json" | jq '"\(.artist) - \(.title) (\(.version)): \(.pp) pp"'
+	echo $id >> $status_file
+done
